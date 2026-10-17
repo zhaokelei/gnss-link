@@ -18,22 +18,30 @@ A 手机（有 GPS）                 Wi-Fi / 热点                 B 手机（
 ## 目录结构
 
 ```
-GPSD/
-├── gpslink/                 ← 新工程（Kotlin，可直接用 Android Studio 打开）
-│   └── app/src/main/java/top/wxip/gpslink/
-│       ├── MainActivity.kt              界面、权限、角色切换
-│       ├── core/
-│       │   ├── Protocol.kt              UDP 协议常量
-│       │   ├── LocationFrame.kt         定位帧 + JSON 编解码 + 转 Location
-│       │   ├── LinkBus.kt               服务 ↔ 界面 的状态总线
-│       │   └── Prefs.kt                 参数持久化
-│       ├── mock/MockLocationEngine.kt   addTestProvider / setTestProviderLocation
-│       └── service/
-│           ├── SendService.kt           发送端前台服务
-│           └── ReceiveService.kt        接收端前台服务
-├── ref-gnsslink/            ← 参考项目源码（只读，方便对照）
-├── docs/技术方案.md          ← 原理、限制、坐标系、性能、合规
-└── README.md
+gpslink/                            Android 工程（Kotlin，Android Studio 直接打开）
+└── app/src/main/java/top/wxip/gpslink/
+    ├── MainActivity.kt             界面、权限、角色切换、卫星面板
+    ├── core/
+    │   ├── Protocol.kt             协议常量、蓝牙 UUID、频率档位
+    │   ├── LocationFrame.kt        定位帧 + JSON 编解码 + 转 Location（含 extras）
+    │   ├── SatWire.kt              卫星快照的编解码
+    │   ├── SatelliteMonitor.kt     GnssStatus 订阅
+    │   ├── Gnss.kt                 星座 / 频段 / 配色的展示规则
+    │   ├── RateProbe.kt            采样上限实测
+    │   ├── Geo.kt                  球面距离
+    │   ├── NetInfo.kt              本机局域网 IPv4
+    │   ├── LinkBus.kt              服务 ↔ 界面 的状态总线
+    │   └── Prefs.kt                参数持久化
+    ├── mock/MockLocationEngine.kt  addTestProvider / setTestProviderLocation
+    ├── transport/
+    │   ├── BtSender.kt             蓝牙发送端（RFCOMM 客户端）
+    │   └── BtReceiver.kt           蓝牙接收端（RFCOMM 服务端）
+    ├── ui/SatelliteBarsView.kt     仿 GPS Test 的信号条（自绘 View）
+    └── service/
+        ├── SendService.kt          发送端前台服务
+        └── ReceiveService.kt       接收端前台服务
+docs/技术方案.md                    原理、坐标系、授权、性能、合规
+README.md
 ```
 
 ## 和参考项目的差别
