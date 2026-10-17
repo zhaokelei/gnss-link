@@ -14,6 +14,7 @@ A 手机（有 GPS）                 Wi-Fi / 热点                 B 手机（
 │  1Hz 采样        │  ◄── ACK ───────  └──────────┘  ──►  │  setTestProvider… │
 └──────────────────┘                                      └──────────────────┘
 ```
+<p align="right"><a href="./README_EN.md">🇺🇸 English</a></p>
 
 ## 目录结构
 
