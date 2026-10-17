@@ -1,0 +1,33 @@
+# 本地环境
+.workbuddy-ai/
+ref-gnsslink/
+local.properties
+local.properties.bak
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# 构建产物
+.gradle/
+build/
+captures/
+.cxx/
+.externalNativeBuild/
+*.apk
+*.aab
+*.dex
+*.class
+
+# 签名文件，绝对不能提交
+*.keystore
+*.jks
+keystore.properties
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini

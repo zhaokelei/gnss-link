@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标：定位针 + 向右上扩散的信号弧。
+  含义 = 位置 + 广播共享。纯白前景，背景是蓝色渐变，
+  中间挖空的部分会透出背景色，形成"针孔"。
+  所有图形都在 108x108 画布中心 66dp 安全区以内。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 定位针（evenOdd 挖出中间的圆孔） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M52,40 C44.27,40 38,46.27 38,54 C38,61 46,71 52,80 C58,71 66,61 66,54 C66,46.27 59.73,40 52,40 Z M52,47 C48.69,47 46,49.69 46,53 C46,56.31 48.69,59 52,59 C55.31,59 58,56.31 58,53 C58,49.69 55.31,47 52,47 Z" />
+
+    <!-- 信号弧：内 -->
+    <path
+        android:pathData="M64.86,37.68 A20,20 0 0 1 72,53"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="4" />
+
+    <!-- 信号弧：外 -->
+    <path
+        android:pathData="M69.36,32.32 A27,27 0 0 1 79,53"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="4" />
+</vector>
