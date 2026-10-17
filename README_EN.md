@@ -42,7 +42,7 @@ gpslink/                          Android project (Kotlin, open directly in Andr
     └── service/
         ├── SendService.kt          Sender foreground service
         └── ReceiveService.kt       Receiver foreground service
-docs/技术方案.md                  Principles, coordinate systems, permissions, performance, compliance
+docs/technical-design.md                  Principles, coordinate systems, permissions, performance, compliance
 README.md
 ```
 
@@ -380,7 +380,7 @@ Packet contents are identical, just replacing UDP unicast with RFCOMM byte strea
  "tms":1760702400123}
 ```
 
-Coordinates are **WGS-84**, passed through as-is, no coordinate system conversion. See `docs/技术方案.md` for rationale.
+Coordinates are **WGS-84**, passed through as-is, no coordinate system conversion. See `docs/technical-design.md` for rationale.
 
 ## Known Limitations
 
@@ -390,7 +390,7 @@ Coordinates are **WGS-84**, passed through as-is, no coordinate system conversio
 - Some apps detect `Location.isMock()` and refuse service (banking, attendance check-in, ride-hailing driver apps, some fitness apps).
 - Mock location has no real satellite signal; navigation relying on GNSS-IMU fusion will lag slightly in turns.
 - For personal testing and accessibility use only. Location data is sensitive personal information; sharing with others requires consent;
-  using it for attendance spoofing,刷单, game cheating etc. may constitute violations or even illegal acts.
+  using it for attendance spoofing, fraudulent transactions, game cheating etc. may constitute violations or even illegal acts.
 
 ## Future Enhancements
 
