@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <title>GNSS Link</title>
+    <link rel="stylesheet" href="liquid-glass-ui.css" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <svg class="symbols" aria-hidden="true">
+      <defs>
+        <symbol id="link" viewBox="0 0 24 24">
+          <path
+            d="m9 15 6-6M8 17l-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 8a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-1 1"
+            transform="translate(1 0) scale(.9)"
+          />
+        </symbol>
+        <symbol id="sat" viewBox="0 0 24 24">
+          <path
+            d="m8 8 8 8m-6-13 4 4-4 4-4-4Zm7 7 4 4-4 4-4-4ZM4 13a7 7 0 0 0 7 7m-7-4a3 3 0 0 0 3 3m9-15 4 4"
+          />
+        </symbol>
+        <symbol id="settings" viewBox="0 0 24 24">
+          <path d="M5 3v18m7-18v18m7-18v18M2 8h6m1 8h6m1-10h6" />
+        </symbol>
+        <symbol id="arrow" viewBox="0 0 24 24">
+          <path d="M4 12h16m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="phone" viewBox="0 0 24 24">
+          <rect x="6" y="2" width="12" height="20" rx="3" />
+          <path d="M10 18h4" />
+        </symbol>
+        <symbol id="tablet" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <path d="M18 10v4" />
+        </symbol>
+        <symbol id="sun" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"
+          />
+        </symbol>
+      </defs>
+    </svg>
+    <div class="page-shell">
+      <header class="top-toolbar">
+        <div class="top-toolbar-tray"></div>
+        <div class="brand">
+          <span class="brand-icon"
+            ><svg><use href="#link" /></svg></span
+          ><b>GNSS Link</b>
+        </div>
+        <button class="lg-btn icon-btn" id="theme" aria-label="切换明暗主题">
+          <svg><use href="#sun" /></svg>
+        </button>
+      </header>
+      <main>
+        <section id="page-link" class="page">
+          <div class="page-heading">
+            <div>
+              <h1>定位共享</h1>
+              <p>将手机定位共享到平板或车机。</p>
+            </div>
+            <span class="state" id="state">未启动</span>
+          </div>
+          <div class="workspace">
+            <article class="connection-panel">
+              <div
+                class="segmented"
+                id="role"
+                role="group"
+                aria-label="设备角色"
+              >
+                <button aria-selected="true" data-value="sender">
+                  共享定位</button
+                ><button aria-selected="false" data-value="receiver">
+                  接收定位
+                </button>
+              </div>
+              <div class="link-scene" aria-hidden="true">
+                <div class="orbit orbit-a"></div>
+                <div class="orbit orbit-b"></div>
+                <div class="device source">
+                  <svg><use href="#phone" /></svg>
+                </div>
+                <div class="connection-line">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="device target">
+                  <svg><use href="#tablet" /></svg>
+                </div>
+                <div class="scene-pin">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" />
+                    <circle cx="12" cy="10" r="2.5" />
+                  </svg>
+                </div>
+              </div>
+              <div class="scene-caption">
+                <span id="source-caption">这台手机</span
+                ><svg><use href="#arrow" /></svg
+                ><span id="target-caption">另一台设备</span>
+              </div>
+              <h2 id="action-title">共享此设备的位置</h2>
+              <p id="action-hint">
+                两台设备连接同一 Wi-Fi 或热点，并使用相同房间码。
+              </p>
+              <div class="session-row">
+                <span>连接方式 <b id="mode-label">局域网</b></span
+                ><span>房间码 <b id="room-label">8888</b></span>
+              </div>
+              <div class="action-tray">
+                <div class="top-toolbar-tray"></div>
+                <button class="lg-btn primary" id="start">
+                  开始共享 <svg><use href="#arrow" /></svg></button
+                ><button class="lg-btn destructive" id="stop" hidden>
+                  停止共享
+                </button>
+              </div>
+              <p class="action-note" id="peer">等待建立连接</p>
+            </article>
+            <div class="right-column">
+              <article class="surface telemetry">
+                <div class="section-head">
+                  <h2>定位实况</h2>
+                  <span id="fix-badge">等待定位</span>
+                </div>
+                <div class="coordinates" id="coordinates">
+                  —<small>启动后显示实时经纬度</small>
+                </div>
+                <div class="metrics">
+                  <div>
+                    <span>定位精度</span><b id="accuracy">— <small>m</small></b>
+                  </div>
+                  <div>
+                    <span>移动速度</span><b id="speed">— <small>km/h</small></b>
+                  </div>
+                  <div>
+                    <span>海拔高度</span><b id="altitude">— <small>m</small></b>
+                  </div>
+                  <div><span>航向</span><b id="bearing">—</b></div>
+                </div>
+                <div class="data-age" id="age">等待第一帧定位数据</div>
+              </article>
+              <article class="surface quality">
+                <div class="section-head">
+                  <h2>链路状态</h2>
+                  <span id="transport-label">UDP / 7007</span>
+                </div>
+                <div class="quality-grid">
+                  <div><b id="rate">—</b><span>帧 / 秒</span></div>
+                  <div>
+                    <b id="latency">—</b
+                    ><span id="latency-label">往返延迟 ms</span>
+                  </div>
+                  <div><b id="packets">0</b><span>接收数据包</span></div>
+                </div>
+                <p id="local-ip">启动后显示本机地址</p>
+              </article>
+            </div>
+          </div>
+          <article class="surface" id="verification" hidden>
+            <h2>系统定位校验</h2>
+            <p id="verify-value"></p>
+            <p id="verify-result"></p>
+          </article>
+        </section>
+        <section id="page-satellites" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <h1>卫星观测</h1>
+              <p id="sat-source">本机 GNSS 信号</p>
+            </div>
+          </div>
+          <article class="surface">
+            <div class="section-head">
+              <h2>卫星信号</h2>
+              <span id="sat-count">可见 0 · 定位 0</span>
+            </div>
+            <div class="sky" id="sky">
+              <span class="north">北</span>
+              <div class="sky-empty">等待卫星数据</div>
+            </div>
+            <p class="muted" id="sat-hint">
+              开启系统定位，到室外或窗边接收信号。
+            </p>
+            <div id="sat-bars" class="sat-bars"></div>
+          </article>
+          <article class="surface">
+            <div class="section-head">
+              <h2>采样能力</h2>
+              <button id="probe" class="lg-btn">检测频率</button>
+            </div>
+            <p id="probe-result">保持室外或窗边，检测约需 12 秒。</p>
+          </article>
+        </section>
+        <section id="page-settings" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <h1>偏好设置</h1>
+              <p>连接参数与设备授权</p>
+            </div>
+          </div>
+          <div class="settings-grid">
+            <article class="surface">
+              <h2>连接设置</h2>
+              <label>传输方式</label>
+              <div
+                class="segmented"
+                id="mode"
+                role="group"
+                aria-label="传输方式"
+              >
+                <button aria-selected="true" data-value="lan">局域网</button
+                ><button aria-selected="false" data-value="bt">蓝牙</button>
+              </div>
+              <label for="sid">房间码</label
+              ><input id="sid" maxlength="64" autocomplete="off" value="8888" />
+              <p class="field-note">两台设备填写相同的房间码。</p>
+              <div id="lan-settings">
+                <label for="port">连接端口</label
+                ><input
+                  id="port"
+                  type="number"
+                  min="1024"
+                  max="65535"
+                  value="7007"
+                /><label for="host">接收端 IP（可选）</label
+                ><input
+                  id="host"
+                  placeholder="留空自动发现"
+                  autocomplete="off"
+                  inputmode="decimal"
+                />
+              </div>
+              <div id="bt-settings" hidden>
+                <div class="section-head">
+                  <span id="bt-device">未选择设备</span
+                  ><button class="lg-btn" id="pick-bt">选择设备</button>
+                </div>
+                <p class="field-note">
+                  共享端选择已配对的接收设备，接收端直接开始接收。
+                </p>
+              </div>
+            </article>
+            <article class="surface">
+              <h2>定位频率</h2>
+              <label>发送采样</label>
+              <div
+                class="segmented"
+                id="sample"
+                role="group"
+                aria-label="发送采样频率"
+              >
+                <button data-value="1000" aria-selected="true">1 Hz</button
+                ><button data-value="500">2 Hz</button
+                ><button data-value="200">5 Hz</button
+                ><button data-value="100">10 Hz</button>
+              </div>
+              <p class="field-note">实际采样频率取决于发送设备的定位能力。</p>
+              <label>接收注入</label>
+              <div
+                class="segmented"
+                id="inject"
+                role="group"
+                aria-label="接收注入频率"
+              >
+                <button data-value="1000">1 Hz</button
+                ><button data-value="200">5 Hz</button
+                ><button data-value="100" aria-selected="true">10 Hz</button>
+              </div>
+              <label for="tint"
+                >玻璃浓度 <output id="tint-value">35%</output></label
+              ><input id="tint" type="range" min="0" max="100" value="35" />
+            </article>
+            <article class="surface">
+              <div class="section-head">
+                <h2>设备授权</h2>
+                <button class="lg-btn" id="recheck">重新检查</button>
+              </div>
+              <div class="check-row">
+                <span>定位权限</span><span id="check-location">待检查</span>
+              </div>
+              <div class="check-row">
+                <span>开发者选项</span><span id="check-dev">待检查</span>
+              </div>
+              <div class="check-row">
+                <span>模拟位置应用</span><span id="check-mock">待检查</span>
+              </div>
+              <p class="field-note">
+                接收端需在开发者选项中选择 GNSS Link 作为模拟位置应用。
+              </p>
+              <div class="button-row">
+                <button class="lg-btn" id="permissions">授予权限</button
+                ><button class="lg-btn" id="mock">打开开发者选项</button>
+              </div>
+              <div class="check-row">
+                <span>后台运行</span><span id="check-battery">待检查</span>
+              </div>
+              <button class="lg-btn" id="battery">设置电池白名单</button>
+            </article>
+            <article class="surface">
+              <h2>运行日志</h2>
+              <pre id="logs">暂无日志</pre>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div class="dock-wrap">
+      <nav role="tablist" class="bottom-dock" aria-label="主导航">
+        <div class="dock-tray"></div>
+        <div
+          class="dock-lens"
+          data-refract="0"
+          data-refract-blur="0"
+          data-refract-bezel="11"
+          data-refract-dispersion="0.14"
+          data-refract-dynamic
+        ></div>
+        <button
+          role="tab" class="dock-tab"
+          aria-selected="true"
+          data-tab="0"
+          aria-controls="page-link"
+        >
+          <svg><use href="#link" /></svg>连接</button
+        ><button
+          role="tab" class="dock-tab"
+          aria-selected="false"
+          data-tab="1"
+          aria-controls="page-satellites"
+        >
+          <svg><use href="#sat" /></svg>卫星</button
+        ><button
+          role="tab" class="dock-tab"
+          aria-selected="false"
+          data-tab="2"
+          aria-controls="page-settings"
+        >
+          <svg><use href="#settings" /></svg>设置
+        </button>
+      </nav>
+    </div>
+    <div id="notice" role="status" hidden></div>
+    <script src="refraction.js"></script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

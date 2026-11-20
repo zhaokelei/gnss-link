@@ -11,8 +11,8 @@ android {
         applicationId = "top.wxip.gpslink"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 5
+        versionName = "1.2.2"
     }
 
     // Release 签名。未签名的 APK 无法安装（系统会报"安装包异常/解析失败"）。

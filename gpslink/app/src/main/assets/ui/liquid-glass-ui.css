@@ -1,0 +1,357 @@
+/* ============================================================================
+   Liquid Glass & Water-Drop UI — Reusable Stylesheet Template (v1.0)
+   ----------------------------------------------------------------------------
+   Pair with:
+     - examples/refraction.js       (dynamic 3-channel RGB SVG backdrop refraction)
+     - examples/liquid-dock.mjs     (spring water-drop dock + all-button physics)
+   ============================================================================ */
+
+:root {
+  --ground: #F2F2F7;
+  --surface: #FFFFFF;
+  --surface-2: #F2F2F7;
+  --label: #161619;
+  --label-2: #626269;
+  --tint: #007AFF;
+  --tint-strong: #0071EB;
+  --sys-red: #FF3B30;
+  --sys-green-dot: #34C759;
+  --separator: rgba(60, 60, 67, 0.14);
+  --r-pill: 999px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.32, 1.15, 0.48, 1);
+
+  /* Single user-controlled tint slider (0.00 = crystal clear, 1.00 = soft frosted) */
+  --glass-tint: .35;
+  --glass-opacity: calc(var(--glass-tint) * .78);
+  --glass-blur-radius: calc(var(--glass-tint) * 10px);
+  --glass-blur: blur(var(--glass-blur-radius)) saturate(115%);
+  --glass-rim-2: rgba(255, 255, 255, 0.55);
+  --rim-1: rgba(255, 255, 255, 0.80);
+  --rim-3: rgba(160, 210, 255, 0.55);
+
+  --dock-ink: #005BBE;
+  --dock-pill: #007AFF;
+  --dock-outline: #223b6140;
+  --dock-label-halo: #ffffffd6;
+  --dock-clearance: calc(112px + env(safe-area-inset-bottom, 0px));
+}
+
+:root[data-theme="dark"] {
+  --ground: #0C0C0E;
+  --surface: #1C1C1E;
+  --surface-2: #2C2C2E;
+  --label: #F5F5F7;
+  --label-2: #ADADB5;
+  --tint: #4DA3FF;
+  --tint-strong: #0A84FF;
+  --sys-red: #FF453A;
+  --separator: rgba(255, 255, 255, 0.12);
+  --glass-rim-2: rgba(255, 255, 255, 0.18);
+  --rim-1: rgba(255, 255, 255, 0.42);
+  --rim-3: rgba(158, 208, 255, 0.32);
+
+  --dock-ink: #9ED0FF;
+  --dock-pill: #ffffff;
+  --dock-outline: #e5f2ff44;
+  --dock-label-halo: #070b14e0;
+}
+
+/* ----------------------------------------------------------------------------
+   1. Floating Top Toolbar (Backdrop-Root Isolated Sibling Tray)
+   ---------------------------------------------------------------------------- */
+
+.top-toolbar {
+  position: relative;
+  min-height: 58px;
+  padding: 5px 5px 5px 18px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.top-toolbar-tray {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: color-mix(in srgb, var(--surface) calc(var(--glass-tint) * 56%), transparent);
+  -webkit-backdrop-filter: blur(calc(var(--glass-tint) * 2px));
+  backdrop-filter: blur(calc(var(--glass-tint) * 2px));
+  box-shadow: inset 0 1px 0 var(--glass-rim-2), inset 0 0 0 1px var(--dock-outline), 0 6px 18px #101c3220;
+}
+
+.top-toolbar > :not(.top-toolbar-tray) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ----------------------------------------------------------------------------
+   2. Floating Bottom Capsule Dock (Flush Resting Pill + Overflow Water Drop)
+   ---------------------------------------------------------------------------- */
+
+.dock-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+}
+
+.bottom-dock {
+  position: relative;
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  width: min(416px, 100%);
+  padding: 4px;
+  border-radius: var(--r-pill);
+  touch-action: pan-y;
+}
+
+.dock-tray,
+.dock-lens {
+  position: absolute;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.dock-tray {
+  inset: 0;
+  background: color-mix(in srgb, var(--surface) calc(var(--glass-tint) * 56%), transparent);
+  -webkit-backdrop-filter: blur(calc(var(--glass-tint) * 2px));
+  backdrop-filter: blur(calc(var(--glass-tint) * 2px));
+  box-shadow: inset 0 1px 0 var(--glass-rim-2), inset 0 0 0 1px var(--dock-outline), 0 6px 18px #101c3220;
+}
+
+.dock-lens {
+  --lens-press: 0;
+  --touch-x: 50%;
+  --touch-y: 30%;
+  display: none;
+  inset: 4px auto 4px 0;
+  background: color-mix(in srgb, var(--dock-pill)
+    calc((1 - var(--lens-press) * 0.94) * (var(--glass-tint) * 14% + 9%)), transparent);
+  -webkit-backdrop-filter: blur(0px);
+  backdrop-filter: blur(0px);
+  box-shadow: 0 4px 16px rgba(10, 20, 40, calc(var(--lens-press) * 0.24));
+}
+
+.has-liquid-selection .dock-lens {
+  display: block;
+}
+
+.dock-lens::before,
+.dock-lens::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.dock-lens::before {
+  padding: 1px;
+  background: linear-gradient(150deg, var(--rim-1), transparent 55%, var(--rim-3));
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  opacity: calc((1 - var(--lens-press)) * 0.32);
+}
+
+.dock-lens::after {
+  padding: 1.5px;
+  background:
+    radial-gradient(ellipse 52% 82% at var(--touch-x) var(--touch-y), rgba(255, 255, 255, 0.96), transparent 78%),
+    linear-gradient(148deg, rgba(255, 255, 255, 0.88), rgba(155, 218, 255, 0.46) 28%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 205, 140, 0.50) 76%, rgba(165, 238, 255, 0.88));
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  opacity: calc(var(--lens-press) * 0.92);
+}
+
+.dock-tab {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 54px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--label-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-shadow: 0 0 3px var(--dock-label-halo);
+  transition: color 120ms linear;
+}
+
+.bottom-dock:not(.is-pressed) .dock-tab[aria-selected="true"],
+.bottom-dock.is-pressed .dock-tab.is-over {
+  color: var(--dock-ink);
+}
+
+/* ----------------------------------------------------------------------------
+   3. Unified Liquid Glass & Water-Drop Squeeze for All Other Buttons
+   ---------------------------------------------------------------------------- */
+
+button:not(.dock-tab) {
+  --btn-press: 0;
+  --button-x: 50%;
+  --button-y: 32%;
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  transform: translate3d(var(--btn-tx, 0px), var(--btn-ty, 0px), 0) scale(var(--btn-sx, 1), var(--btn-sy, 1));
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+}
+
+button:not(.dock-tab)[data-touch-pressed] {
+  z-index: 6;
+}
+
+button:not(.dock-tab):is(:disabled, [aria-disabled="true"]) {
+  transform: none !important;
+}
+
+/* Standard Glass Pill Button */
+.lg-btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--dock-pill)
+    calc((1 - var(--btn-press) * 0.92) * (var(--glass-tint) * 16% + 10%)), transparent);
+  color: var(--dock-ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 var(--glass-rim-2),
+    0 4px 16px rgba(10, 22, 46, calc(var(--btn-press) * 0.22));
+}
+
+/* Primary Action Glass Pill (e.g. Start / Confirm) */
+.lg-btn.primary {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, #80c8ff calc((1 - var(--btn-press) * 0.85) * 32%), transparent), transparent 58%),
+    color-mix(in srgb, var(--tint-strong)
+      calc((1 - var(--btn-press) * 0.82) * (48% + var(--glass-tint) * 32%)), transparent);
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 22, 64, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    0 4px 16px rgba(10, 110, 255, calc(0.18 + var(--btn-press) * 0.16));
+}
+
+/* Destructive / Stop Glass Pill */
+.lg-btn.destructive {
+  background:
+    linear-gradient(160deg, rgba(255, 140, 130, calc((1 - var(--btn-press) * 0.88) * 0.18)), transparent 58%),
+    color-mix(in srgb, var(--sys-red)
+      calc((1 - var(--btn-press) * 0.88) * (16% + var(--glass-tint) * 16%)), transparent);
+  color: var(--sys-red);
+  box-shadow: inset 0 1px 0 var(--glass-rim-2),
+    0 4px 16px rgba(180, 24, 24, calc(var(--btn-press) * 0.22));
+}
+
+/* Universal Prismatic Water-Drop Meniscus Rim */
+button:not(.dock-tab):not(.ios-switch)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  padding: calc(1px + var(--btn-press) * 0.5px);
+  background:
+    radial-gradient(ellipse 55% 85% at var(--button-x) var(--button-y),
+      rgba(255, 255, 255, calc(0.25 + var(--btn-press) * 0.72)), transparent 78%),
+    linear-gradient(148deg,
+      rgba(255, 255, 255, calc(0.42 + var(--btn-press) * 0.48)),
+      rgba(155, 218, 255, calc(0.18 + var(--btn-press) * 0.34)) 28%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 205, 140, calc(0.14 + var(--btn-press) * 0.38)) 76%,
+      rgba(165, 238, 255, calc(0.40 + var(--btn-press) * 0.50)));
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  opacity: calc(0.44 + var(--btn-press) * 0.52);
+}
+
+/* ----------------------------------------------------------------------------
+   4. Segmented Control Tray (Overflow-Visible for Droplet Expansion)
+   ---------------------------------------------------------------------------- */
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  gap: 3px;
+  border-radius: 16px;
+  overflow: visible;
+  background: color-mix(in srgb, var(--surface-2) calc(42% + var(--glass-tint) * 36%), transparent);
+  box-shadow: inset 0 1px 0 var(--glass-rim-2), inset 0 0 0 1px var(--dock-outline);
+}
+
+.segmented button {
+  min-height: 44px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--label-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.segmented button:not([aria-selected="true"])::after {
+  opacity: calc(var(--btn-press) * 0.94);
+}
+
+.segmented button[aria-selected="true"] {
+  background: color-mix(in srgb, var(--dock-pill)
+    calc((1 - var(--btn-press) * 0.92) * (var(--glass-tint) * 15% + 10%)), transparent);
+  color: var(--dock-ink);
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------------------
+   5. Accessibility & Fallbacks
+   ---------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(.dock-tab) {
+    transform: none !important;
+  }
+}
+
+:root[data-reduce-motion] .dock-tab,
+:root[data-reduce-motion] button:not(.dock-tab) {
+  transition-duration: 0s;
+  transform: none !important;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .dock-tray,
+  .dock-lens,
+  .top-toolbar-tray {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
