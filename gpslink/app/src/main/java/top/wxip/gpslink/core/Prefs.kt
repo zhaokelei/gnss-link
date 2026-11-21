@@ -17,6 +17,24 @@ object Prefs {
     private const val K_AUTO_START = "auto_start"
     private const val K_LAST_ROLE = "last_role"
     private const val K_TRACK_ENABLED = "track_enabled"
+    private const val K_NMEA_ENABLED = "nmea_enabled"
+    private const val K_NMEA_PORT = "nmea_port"
+
+    /** NMEA over TCP 输出 */
+    fun saveNmea(ctx: Context, enabled: Boolean, port: Int) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putBoolean(K_NMEA_ENABLED, enabled)
+            .putInt(K_NMEA_PORT, port)
+            .apply()
+    }
+
+    fun loadNmeaEnabled(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getBoolean(K_NMEA_ENABLED, false)
+
+    fun loadNmeaPort(ctx: Context): Int =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getInt(K_NMEA_PORT, Protocol.DEFAULT_NMEA_PORT)
 
     /** 开机自启：下次开机按上次角色自动拉起服务 */
     fun saveAutoStart(ctx: Context, enabled: Boolean) {

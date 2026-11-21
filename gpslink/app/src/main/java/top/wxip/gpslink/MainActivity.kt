@@ -145,6 +145,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         "tracks" -> publishTracks()
                         "track-play" -> playTrack(data.optString("path"))
                         "track-delete" -> deleteTrack(data.optString("path"))
+                        "nmea" -> configureNmea(data.optBoolean("enabled"), data.optInt("port"))
                     }
                 } catch (e: Exception) { toast("操作未完成：${e.message}") }
             }
@@ -163,6 +164,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("useBt", useBt).put("intervalMs", cfg.intervalMs).put("injectMs", Prefs.loadInject(this))
             .put("autoStart", Prefs.loadAutoStart(this))
             .put("trackEnabled", Prefs.loadTrackEnabled(this))
+            .put("nmeaEnabled", Prefs.loadNmeaEnabled(this))
+            .put("nmeaPort", Prefs.loadNmeaPort(this))
             .put("package", packageName)
             .put("dark", resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
             .put("reduceMotion", reducedMotion()))
@@ -179,8 +182,24 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
-    private fun toggleTrack(enabled: Boolean) {
-        Prefs.saveTrackEnabled(this, enabled)
+    /** NMEA over TCP：开关与端口保存在本地，下次开始共享时生效 */
+    private fun configureNmea(enabled: Boolean, port: Int) {
+        val safePort = when {
+            port in 1024..65535 -> port
+            LinkBus.status.nmeaPort > 0 -> LinkBus.status.nmeaPort
+            else -> Protocol.DEFAULT_NMEA_PORT
+        }
+        Prefs.saveNmea(this, enabled, safePort)
+        if (LinkBus.status.running && LinkBus.status.role == Role.SENDER) {
+            toast("NMEA 设置已保存，重新开始共享后生效")
+        }
+        LinkBus.log(
+            if (enabled) "已开启 NMEA 输出：端口 $safePort" else "已关闭 NMEA 输出"
+        )
+        publishConfig()
+    }
+
+    private fun toggleTrack(enabled: Boolean) {        Prefs.saveTrackEnabled(this, enabled)
         if (!enabled && TrackRecorder.isRecording) {
             TrackRecorder.stop()
             LinkBus.log("已停止记录轨迹")
@@ -329,6 +348,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("verifyLon", status.verifyLon)
             .put("verifyDeltaM", status.verifyDeltaM)
             .put("probing", rateProbe.isRunning)
+            .put("nmeaPort", status.nmeaPort)
+            .put("nmeaClients", status.nmeaClients)
         emit("status", json)
     }
 

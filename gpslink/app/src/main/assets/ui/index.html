@@ -374,6 +374,39 @@
               </div>
             </article>
             <article class="surface">
+              <div class="section-head">
+                <h2>NMEA 输出</h2>
+                <span id="nmea-state">未开启</span>
+              </div>
+              <div class="switch-row">
+                <div class="switch-text">
+                  <span class="switch-label">通过 TCP 输出 NMEA</span>
+                  <p class="field-note">
+                    车机导航支持「外部 GPS / NMEA 输入」时，填本机地址与端口即可读取，
+                    完全不需要开发者选项或模拟位置授权。
+                  </p>
+                </div>
+                <button
+                  class="switch"
+                  id="nmea"
+                  role="switch"
+                  aria-checked="false"
+                  aria-label="输出 NMEA"
+                >
+                  <span></span>
+                </button>
+              </div>
+              <label for="nmea-port">监听端口</label>
+              <input
+                id="nmea-port"
+                type="number"
+                min="1024"
+                max="65535"
+                value="10110"
+              />
+              <p class="field-note" id="nmea-address">开始共享后显示连接地址</p>
+            </article>
+            <article class="surface">
               <h2>运行日志</h2>
               <pre id="logs">暂无日志</pre>
             </article>
