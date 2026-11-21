@@ -4,8 +4,6 @@ Phone A acquires GPS → sends to Phone B over LAN UDP → Phone B injects it as
 After that, B opens Amap / Baidu / Google Maps and thinks it is at A's location, ready for navigation.
 Ideal for tablets, head units, dev boards without GPS modules, or any location-related testing.
 
-Redesigned based on the open-source project [wxip/gnsslink](https://github.com/wxip/gnsslink).
-
 ```
 Phone A (has GPS)            Wi-Fi / Hotspot            Phone B (no GPS needed)
 ┌──────────────────┐                                ┌──────────────────┐
@@ -16,6 +14,18 @@ Phone A (has GPS)            Wi-Fi / Hotspot            Phone B (no GPS needed)
 ```
 
 <p align="right"><a href="./README.md">🇨🇳 中文版</a></p>
+
+## Screenshots
+
+| Sender | Receiver | Satellites |
+|:---:|:---:|:---:|
+| <img src="docs/images/screen-sender.jpg" width="230"> | <img src="docs/images/screen-receiver.jpg" width="230"> | <img src="docs/images/screen-satellite.png" width="230"> |
+| Shares this device's location, shows room code and link state | Receives and injects the peer location, stoppable anytime | Satellite sky view and signal-strength bars |
+
+| Live Status | Settings |
+|:---:|:---:|
+| <img src="docs/images/screen-data.png" width="230"> | <img src="docs/images/screen-settings.png" width="230"> |
+| Coordinates, accuracy, link quality and system verification | Transport, room code, port and sampling rate |
 
 ## Directory Structure
 
@@ -46,21 +56,19 @@ docs/technical-design.md                  Principles, coordinate systems, permis
 README.md
 ```
 
-## Differences from the Reference Project
+## Technical Highlights
 
-The reference project `gnsslink` is only 145 lines of Java — the idea is solid, but it's essentially a demo. This version does the following:
-
-| Issue | Reference | This Project |
-|---|---|---|
-| Screen-off / background | Logic in Activity, stops when process frozen | Two foreground services + persistent notification, runs long-term |
-| Pairing | Manually enter B's LAN IP | UDP broadcast auto-discovery, with optional manual IP fallback |
-| Authentication | None — any device on the subnet can feed coordinates | Room code check, mismatched packets dropped |
-| Mock location permission | Catches `SecurityException` and shows a Toast | Proactively checks via AppOps + guides to Developer options |
-| Injected provider | Only replaces `gps` | `gps` + `network`, compatible with head units/tablets that only read `network` |
-| Link quality | Invisible | Real-time FPS, round-trip latency, packet loss |
-| Disconnection | Dead is dead | Heartbeat + auto rediscovery + auto-recovery after service is killed |
-| Crashes | `throw new RuntimeException(e)` | Full try/catch chain, graceful degradation to logging |
-| Language / Build | Java, AGP 8.3.0-alpha07, Gradle 8.4-rc-2 | Kotlin, AGP 8.3.2, Gradle 8.4 stable |
+| Area | Implementation |
+|---|---|
+| Screen-off / background | Two foreground services + persistent notification, runs long-term |
+| Pairing | UDP broadcast auto-discovery, with optional manual IP fallback |
+| Authentication | Room code check, mismatched packets dropped |
+| Mock location permission | Proactively checks via AppOps + guides to Developer options |
+| Injected provider | `gps` + `network`, compatible with head units/tablets that only read `network` |
+| Link quality | Real-time FPS, round-trip latency, packet loss |
+| Disconnection | Heartbeat + auto rediscovery + auto-recovery after service is killed |
+| Crashes | Full try/catch chain, graceful degradation to logging |
+| Language / Build | Kotlin, AGP 8.3.2, Gradle 8.4 |
 
 ## Quick Start
 
@@ -405,5 +413,3 @@ Coordinates are **WGS-84**, passed through as-is, no coordinate system conversio
 This project is released under the [Name Attribution License 1.0 (NAL-1.0)](./LICENSE): any use is permitted, including commercial use, but any use, modification or distribution of this code **must visibly credit the original author and source** in your project:
 
 > Part of this work is based on GNSS Link (https://github.com/zhaokelei/gnss-link) by zhaokelei, used under the NAL-1.0 Name Attribution License.
-
-This project was redesigned based on [wxip/gnsslink](https://github.com/wxip/gnsslink); this license covers only the original work in this project.

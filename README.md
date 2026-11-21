@@ -17,8 +17,6 @@
 B 之后打开高德 / 百度 / Google 地图，会认为自己就在 A 的位置，可以直接导航。
 适合没有 GPS 模块的平板、车机、开发板，或者做定位相关的测试。
 
-基于开源项目 [wxip/gnsslink](https://github.com/wxip/gnsslink) 重做。
-
 ```
 A 手机（有 GPS）                 Wi-Fi / 热点                 B 手机（无 GPS 也行）
 ┌──────────────────┐                                      ┌──────────────────┐
@@ -28,6 +26,18 @@ A 手机（有 GPS）                 Wi-Fi / 热点                 B 手机（
 └──────────────────┘                                      └──────────────────┘
 ```
 <p align="right"><a href="./README_EN.md">🇺🇸 English</a></p>
+
+## 界面预览
+
+| 共享端 | 接收端 | 卫星观测 |
+|:---:|:---:|:---:|
+| <img src="docs/images/screen-sender.jpg" width="230"> | <img src="docs/images/screen-receiver.jpg" width="230"> | <img src="docs/images/screen-satellite.png" width="230"> |
+| 把本机定位共享给另一台设备，显示房间码与连接状态 | 接收并注入对端定位，可随时停止 | 卫星天空视图与信号强度柱状图 |
+
+| 定位实况 | 偏好设置 |
+|:---:|:---:|
+| <img src="docs/images/screen-data.png" width="230"> | <img src="docs/images/screen-settings.png" width="230"> |
+| 坐标、精度、链路质量与系统定位校验 | 传输方式、房间码、端口与采样频率 |
 
 ## 目录结构
 
@@ -58,21 +68,19 @@ docs/技术方案.md                    原理、坐标系、授权、性能、�
 README.md
 ```
 
-## 和参考项目的差别
+## 技术要点
 
-参考项目 `gnsslink` 的核心只有 145 行 Java，思路完全正确，但只能算 demo。这一版做了这些事：
-
-| 问题 | 参考项目 | 本工程 |
-|---|---|---|
-| 息屏/切后台 | 逻辑写在 Activity，进程被冻结后定位就停 | 两个前台服务 + 常驻通知，可长期运行 |
-| 配对方式 | 手动输入 B 的内网 IP | UDP 广播自动发现，也支持手动指定 IP 兜底 |
-| 鉴权 | 无，同网段任何设备都能往你手机灌坐标 | 房间码校验，不匹配直接丢弃 |
-| 模拟位置授权 | 捕获 `SecurityException` 后弹个 Toast | 主动用 AppOps 检测 + 引导跳转开发者选项 |
-| 注入 provider | 只顶替 `gps` | `gps` + `network`，兼容只读 network 的车机/平板 |
-| 链路质量 | 看不到 | 实时显示帧率、往返延迟、丢包率 |
-| 断线 | 挂了就挂了 | 心跳 + 自动重新发现 + 服务被回收后自恢复 |
-| 异常 | `throw new RuntimeException(e)` 直接崩 | 全链路 try/catch，失败降级为日志 |
-| 语言/构建 | Java、AGP 8.3.0-alpha07、Gradle 8.4-rc-2 | Kotlin、AGP 8.3.2、Gradle 8.4 正式版 |
+| 环节 | 实现方式 |
+|---|---|
+| 息屏/切后台 | 两个前台服务 + 常驻通知，可长期运行 |
+| 配对方式 | UDP 广播自动发现，也支持手动指定 IP 兜底 |
+| 鉴权 | 房间码校验，不匹配直接丢弃 |
+| 模拟位置授权 | 主动用 AppOps 检测 + 引导跳转开发者选项 |
+| 注入 provider | `gps` + `network`，兼容只读 network 的车机/平板 |
+| 链路质量 | 实时显示帧率、往返延迟、丢包率 |
+| 断线 | 心跳 + 自动重新发现 + 服务被回收后自恢复 |
+| 异常 | 全链路 try/catch，失败降级为日志 |
+| 语言/构建 | Kotlin、AGP 8.3.2、Gradle 8.4 |
 
 ## 快速开始
 
@@ -422,5 +430,3 @@ adb shell dumpsys location | grep -i "satellites"
 本项目采用 [署名许可协议 1.0（NAL-1.0）](./LICENSE)：允许任何用途（含商用），但使用、修改或分发本项目代码时，**必须在你的项目中显著标注原作者与出处**：
 
 > 本产品部分代码来自 GNSS Link (https://github.com/zhaokelei/gnss-link)，作者 zhaokelei，依据 NAL-1.0 署名许可协议使用。
-
-本项目基于 [wxip/gnsslink](https://github.com/wxip/gnsslink) 重做，本协议仅覆盖本项目原创部分。

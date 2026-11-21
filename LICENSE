@@ -23,9 +23,6 @@ Name Attribution License 1.0
 4. 免责声明
    本软件按"原样"提供，不提供任何明示或默示担保，包括但不限于适销性、特定用途适用性和不侵权担保。版权所有者不对因使用本软件而产生的任何损失承担责任。
 
-5. 上游声明
-   本项目基于开源项目 wxip/gnsslink (https://github.com/wxip/gnsslink) 重做。本协议仅适用于本项目中由版权所有者原创的部分，不覆盖仍受上游权利约束的内容。
-
 --------------------------------------------------------------------------------
 
 English summary (for reference only; the Chinese text above governs):
@@ -49,6 +46,3 @@ subject to the following conditions:
    not authorized and must cease immediately.
 
 4. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
-
-5. This project was redesigned based on wxip/gnsslink. This license covers only
-   the original work of the copyright holder in this project.

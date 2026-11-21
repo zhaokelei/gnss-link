@@ -18,7 +18,7 @@ object Protocol {
 
     const val VERSION = 1
 
-    /** 默认 UDP 端口，与参考项目 gnsslink 保持一致 */
+    /** 默认 UDP 端口 */
     const val DEFAULT_PORT = 7007
 
     /** 默认采样间隔：1Hz */
