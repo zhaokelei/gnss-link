@@ -4,6 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -30,6 +32,7 @@ import top.wxip.gpslink.core.*
 import top.wxip.gpslink.mock.MockLocationEngine
 import top.wxip.gpslink.service.ReceiveService
 import top.wxip.gpslink.service.SendService
+import java.io.File
 
 /** Local-only presentation host. Location and transport remain in foreground services. */
 class MainActivity : AppCompatActivity(), LinkBus.Observer {
@@ -112,6 +115,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                             publishConfig()
                             publishChecks()
                             publishBtLabel()
+                            publishTracks()
                             onStatus(LinkBus.status)
                             publishSatellites()
                             emit("log", JSONArray(logLines.toList()))
@@ -124,11 +128,23 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         "stop" -> { SendService.stop(this@MainActivity); ReceiveService.stop(this@MainActivity); LinkBus.reset() }
                         "mock" -> startActivity(engine.developerOptionsIntent())
                         "battery" -> requestIgnoreBattery()
+                        "background" -> openAppSettings()
                         "permissions" -> withPermission { publishChecks() }
                         "recheck" -> publishChecks()
                         "pick-bt" -> withPermission { pickBtDevice() }
                         "probe" -> runProbe()
                         "theme" -> applySystemTheme(data.optBoolean("dark"))
+                        "autostart" -> {
+                            val on = data.optBoolean("enabled")
+                            Prefs.saveAutoStart(this@MainActivity, on)
+                            LinkBus.log(if (on) "已开启开机自动运行" else "已关闭开机自动运行")
+                            publishConfig()
+                        }
+                        "copy" -> copyText(data.optString("text"))
+                        "track-toggle" -> toggleTrack(data.optBoolean("enabled"))
+                        "tracks" -> publishTracks()
+                        "track-play" -> playTrack(data.optString("path"))
+                        "track-delete" -> deleteTrack(data.optString("path"))
                     }
                 } catch (e: Exception) { toast("操作未完成：${e.message}") }
             }
@@ -145,8 +161,69 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         val cfg = Prefs.loadSend(this)
         emit("init", JSONObject().put("sid", cfg.sid).put("port", cfg.port).put("host", cfg.host)
             .put("useBt", useBt).put("intervalMs", cfg.intervalMs).put("injectMs", Prefs.loadInject(this))
+            .put("autoStart", Prefs.loadAutoStart(this))
+            .put("trackEnabled", Prefs.loadTrackEnabled(this))
+            .put("package", packageName)
             .put("dark", resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
             .put("reduceMotion", reducedMotion()))
+    }
+
+    private fun copyText(text: String) {
+        if (text.isBlank()) return
+        try {
+            (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                .setPrimaryClip(ClipData.newPlainText("gpslink", text))
+            toast("已复制到剪贴板")
+        } catch (t: Throwable) {
+            toast("复制失败：${t.message}")
+        }
+    }
+
+    private fun toggleTrack(enabled: Boolean) {
+        Prefs.saveTrackEnabled(this, enabled)
+        if (!enabled && TrackRecorder.isRecording) {
+            TrackRecorder.stop()
+            LinkBus.log("已停止记录轨迹")
+        }
+        LinkBus.log(if (enabled) "已开启轨迹记录，收到定位后自动保存" else "已关闭轨迹记录")
+        publishConfig()
+        publishTracks()
+    }
+
+    private fun publishTracks() {
+        val array = JSONArray()
+        TrackRecorder.list(this).forEach { info ->
+            array.put(
+                JSONObject()
+                    .put("name", info.name)
+                    .put("path", info.file.absolutePath)
+                    .put("points", info.points)
+                    .put("durationMs", info.durationMs)
+                    .put("bytes", info.bytes)
+            )
+        }
+        emit("tracks", array)
+    }
+
+    private fun playTrack(path: String) {
+        if (path.isBlank()) return toast("轨迹文件不存在")
+        if (LinkBus.status.running) return toast("请先停止当前任务再回放")
+        if (!engine.isSelectedAsMockApp()) {
+            publishChecks()
+            return toast("回放需要模拟位置授权，请先在开发者选项或 adb 中授权")
+        }
+        try {
+            ReceiveService.playTrack(this, path)
+        } catch (t: Throwable) {
+            toast("回放失败：${t.message}")
+        }
+    }
+
+    private fun deleteTrack(path: String) {
+        if (path.isBlank()) return
+        val ok = TrackRecorder.delete(File(path))
+        toast(if (ok) "轨迹已删除" else "删除失败")
+        publishTracks()
     }
 
     private fun configure(data: JSONObject) {
@@ -169,6 +246,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
 
     private fun start(role: String) {
         val cfg = Prefs.loadSend(this)
+        // 记住角色，供开机自启使用
+        Prefs.saveLastRole(this, if (role == "receiver") Role.RECEIVER.name else Role.SENDER.name)
         if (role == "receiver") {
             if (!engine.isSelectedAsMockApp()) {
                 publishChecks()
@@ -285,7 +364,28 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
 
     private fun publishChecks() {
         emit("checks", JSONObject().put("location", hasLocationPermission()).put("dev", engine.isDeveloperOptionsEnabled())
-            .put("mock", engine.isSelectedAsMockApp()).put("battery", isIgnoringBattery()))
+            .put("mock", engine.isSelectedAsMockApp()).put("battery", isIgnoringBattery())
+            .put("background", hasBackgroundLocation()))
+    }
+
+    /** Android 10 起「始终允许」必须由用户在设置页手动开启，无法用运行时弹窗申请 */
+    private fun hasBackgroundLocation(): Boolean =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) true
+        else ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+    private fun openAppSettings() {
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$packageName")
+                )
+            )
+        } catch (t: Throwable) {
+            toast("无法打开应用设置：${t.message}")
+        }
     }
 
     @SuppressLint("MissingPermission")

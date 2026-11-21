@@ -21,6 +21,12 @@
     <!-- 定位 -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!--
+      后台定位：Android 14 起，从 BOOT_COMPLETED 启动 location 类型前台服务时，
+      系统要求应用持有「使用期间」权限之外的常驻定位授权，否则抛 SecurityException。
+      开机自启要真正可用，必须让用户在设置里选「始终允许」。
+    -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <!-- 前台服务（Android 14 起 location 类型必须声明并使用 FOREGROUND_SERVICE_LOCATION） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -28,6 +34,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- 开机自启 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- 模拟位置：仅用于声明，实际授权由用户在「开发者选项」中手动指定本应用 -->
     <uses-permission
@@ -65,6 +74,17 @@
             android:name=".service.ReceiveService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <receiver
+            android:name=".service.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

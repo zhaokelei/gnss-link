@@ -14,6 +14,42 @@ object Prefs {
     private const val K_INJECT = "inject_interval"
     private const val K_USE_BT = "use_bt"
     private const val K_BT_MAC = "bt_mac"
+    private const val K_AUTO_START = "auto_start"
+    private const val K_LAST_ROLE = "last_role"
+    private const val K_TRACK_ENABLED = "track_enabled"
+
+    /** 开机自启：下次开机按上次角色自动拉起服务 */
+    fun saveAutoStart(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putBoolean(K_AUTO_START, enabled)
+            .apply()
+    }
+
+    fun loadAutoStart(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getBoolean(K_AUTO_START, false)
+
+    /** 最近一次运行的角色，供开机自启使用 */
+    fun saveLastRole(ctx: Context, role: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putString(K_LAST_ROLE, role)
+            .apply()
+    }
+
+    fun loadLastRole(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getString(K_LAST_ROLE, "") ?: ""
+
+    /** 收到定位帧时是否自动落盘为轨迹 */
+    fun saveTrackEnabled(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putBoolean(K_TRACK_ENABLED, enabled)
+            .apply()
+    }
+
+    fun loadTrackEnabled(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getBoolean(K_TRACK_ENABLED, false)
 
     /** 传输方式 */
     fun saveUseBt(ctx: Context, useBt: Boolean) {

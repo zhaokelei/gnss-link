@@ -30,8 +30,10 @@ import top.wxip.gpslink.core.Protocol
 import top.wxip.gpslink.core.Role
 import top.wxip.gpslink.core.SatStats
 import top.wxip.gpslink.core.SatWire
+import top.wxip.gpslink.core.TrackRecorder
 import top.wxip.gpslink.mock.MockLocationEngine
 import top.wxip.gpslink.transport.BtReceiver
+import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -40,7 +42,7 @@ import java.net.SocketTimeoutException
 /**
  * 接收端（手机 B）：监听 UDP，把收到的坐标注入为模拟位置。
  *
- * 与参考项目的关键差异：
+ * 设计要点：
  *  - 跑在前台服务里，息屏 / 切后台都不会断；
  *  - 校验房间码，防止同网段其他设备误注入；
  *  - 同时顶替 gps 与 network 两个 provider，兼容只读 network 的设备；
@@ -55,10 +57,24 @@ class ReceiveService : Service() {
 
         const val ACTION_START = "top.wxip.gpslink.action.START_RECV"
         const val ACTION_SET_INJECT = "top.wxip.gpslink.action.SET_INJECT"
+        const val ACTION_PLAY = "top.wxip.gpslink.action.PLAY_TRACK"
         const val EXTRA_PORT = "port"
         const val EXTRA_SID = "sid"
         const val EXTRA_INJECT = "inject"
         const val EXTRA_USE_BT = "use_bt"
+        const val EXTRA_TRACK = "track_path"
+
+        /**
+         * 回放一条轨迹：不绑端口、不连蓝牙，只按记录时的节奏把帧重新注入系统。
+         * 适合在没有任何发送端的情况下验证注入链路与地图表现。
+         */
+        fun playTrack(ctx: Context, path: String) {
+            val i = Intent(ctx, ReceiveService::class.java).apply {
+                action = ACTION_PLAY
+                putExtra(EXTRA_TRACK, path)
+            }
+            ContextCompat.startForegroundService(ctx, i)
+        }
 
         fun start(ctx: Context, port: Int, sid: String, injectMs: Int, useBt: Boolean) {
             val i = Intent(ctx, ReceiveService::class.java).apply {
@@ -154,6 +170,12 @@ class ReceiveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_PLAY) {
+            startAsForeground()
+            startPlayback(intent.getStringExtra(EXTRA_TRACK).orEmpty())
+            return START_NOT_STICKY
+        }
+
         if (intent?.action == ACTION_SET_INJECT) {
             injectIntervalMs = intent.getIntExtra(EXTRA_INJECT, Protocol.DEFAULT_INJECT_MS)
                 .coerceIn(50, 2000)
@@ -289,6 +311,85 @@ class ReceiveService : Service() {
 
     // ---------------------------------------------------------------- 主流程
 
+    /**
+     * 轨迹回放。
+     *
+     * 按记录时的相对时间偏移调度注入，节奏与真实采集一致；
+     * 不绑端口、不起网络线程，因此不依赖发送端，也不需要同网段。
+     */
+    private fun startPlayback(path: String) {
+        val file = File(path)
+        val frames = TrackRecorder.read(file)
+        if (frames.isEmpty()) {
+            LinkBus.log("轨迹为空或无法读取：${file.name}")
+            LinkBus.update { it.copy(running = false, role = Role.NONE) }
+            stopSelf()
+            return
+        }
+        try {
+            engine.prepare()
+        } catch (t: Throwable) {
+            LinkBus.log(t.message ?: "模拟位置初始化失败")
+            LinkBus.update { it.copy(running = false, role = Role.NONE) }
+            stopSelf()
+            return
+        }
+
+        running = true
+        acquireWakeLock()
+        val totalMs = frames.last().first
+        LinkBus.update {
+            it.copy(
+                running = true, role = Role.RECEIVER, peer = "轨迹回放",
+                online = true, localIp = "", rxCount = 0, txCount = 0,
+                lossPercent = 0f
+            )
+        }
+        LinkBus.log("轨迹回放：${file.name}，${frames.size} 帧，${totalMs / 1000} 秒")
+
+        val h = Handler(Looper.getMainLooper())
+        val began = SystemClock.elapsedRealtime()
+        var index = 0
+
+        val step = object : Runnable {
+            override fun run() {
+                if (!running) return
+                val elapsed = SystemClock.elapsedRealtime() - began
+                var latest: LocationFrame? = null
+                while (index < frames.size && frames[index].first <= elapsed) {
+                    latest = frames[index].second
+                    index++
+                }
+                if (latest != null) {
+                    lastFrame = latest
+                    lastFrameElapsed = SystemClock.elapsedRealtime()
+                    injectNow(latest)
+                    LinkBus.update {
+                        it.copy(
+                            lat = latest.lat, lon = latest.lon,
+                            accuracy = latest.accuracy, altitude = latest.altitude,
+                            speed = latest.speed, bearing = latest.bearing,
+                            fixCount = it.fixCount + 1, fixAgeMs = 0L
+                        )
+                    }
+                }
+                if (index >= frames.size) {
+                    // 留 1.5 秒让最后一帧被系统消化，再撤销 provider
+                    h.postDelayed({
+                        if (running) {
+                            LinkBus.log("轨迹回放结束")
+                            stopAll()
+                            stopSelf()
+                        }
+                    }, 1500)
+                    return
+                }
+                h.postDelayed(this, 100)
+            }
+        }
+        h.postDelayed(step, 50)
+    }
+
     private fun start() {
         running = true
         startedAt = System.currentTimeMillis()
@@ -423,6 +524,14 @@ class ReceiveService : Service() {
 
     /** 收到新帧：把"上一帧外推到此刻"与真实值的差记成残差，随后 400ms 内衰减掉 */
     private fun onFrame(f: LocationFrame) {
+        // 轨迹记录：开关打开时自动开始，逐帧落盘，便于离线复现
+        if (Prefs.loadTrackEnabled(this)) {
+            if (!TrackRecorder.isRecording) {
+                TrackRecorder.start(this)?.let { LinkBus.log("开始记录轨迹：${it.name}") }
+            }
+            TrackRecorder.appendFrame(f)
+        }
+
         val now = SystemClock.elapsedRealtime()
         val prev = lastFrame
         val prevAt = lastFrameElapsed
@@ -516,6 +625,10 @@ class ReceiveService : Service() {
         lastFrameElapsed = 0
         offsetLat = 0.0
         offsetLon = 0.0
+        if (TrackRecorder.isRecording) {
+            LinkBus.log("轨迹已保存：${TrackRecorder.currentFile?.name ?: ""}")
+            TrackRecorder.stop()
+        }
         LinkBus.update {
             it.copy(
                 running = false, role = Role.NONE, peer = "", online = false,
