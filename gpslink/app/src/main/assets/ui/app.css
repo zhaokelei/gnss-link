@@ -11,7 +11,29 @@
   --separator: #294e791c;
   --panel: #ffffffa8;
   --line: #ffffffd9;
-  font-family: Roboto, "Noto Sans", system-ui, sans-serif;
+
+  /* ===== Lens Design System tokens (--lg-) =====
+     强调色单一：accent 蓝。禁止橙/黄作为强调，danger 红仅用于不可逆操作。 */
+  --lg-color-accent: #2f6fed;
+  --lg-color-accent-strong: #245fd1;
+  --lg-color-focus: var(--lg-color-accent);
+  --lg-color-ink: var(--label);
+  --lg-color-ink-2: var(--label-2);
+  --lg-radius-panel: 28px;
+  --lg-radius-control: 16px;
+  --lg-radius-pill: 999px;
+  --lg-font-body: Roboto, "Noto Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --lg-font-control: 14px;
+  --lg-font-heading: 30px;
+  --lg-z-content: 0;
+  --lg-z-card: 10;
+  --lg-z-dock: 100;
+  --lg-z-modal: 1000;
+  --lg-z-notice: 1100;
+  --lg-motion-fast: 160ms;
+  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: var(--lg-font-body);
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -23,6 +45,15 @@
   --panel: #1b2a3cb3;
   --line: #b4d6ff20;
   --separator: #b4d6ff20;
+
+  /* 深色仍保持单一蓝色强调，仅提高亮度以满足对比度 */
+  --lg-color-accent: #6aa8ff;
+  --lg-color-accent-strong: #4d90ff;
+  --lg-color-focus: var(--lg-color-accent);
+  --lg-color-ink: var(--label);
+  --lg-color-ink-2: var(--label-2);
+  --dock-pill: var(--lg-color-accent);
+  --dock-ink: var(--lg-color-accent);
   color-scheme: dark;
 }
 * {
@@ -856,4 +887,447 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 16px;
   background: color-mix(in srgb, var(--surface-2) 40%, transparent);
   color: var(--label-2);
+}
+
+/* ==========================================================================
+   Lens v1.5.0 — 布局溢出修复
+   根因：grid 项默认 min-width:auto，被 segmented / input 的 min-content 撑破；
+   叠加 100vw + padding 造成右溢出被裁。以下约束保证 393×852 不横向滚动。
+   ========================================================================== */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.page-shell,
+main,
+.settings-grid,
+.workspace {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.settings-grid > *,
+.workspace > *,
+.right-column > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.surface,
+.connection-panel,
+article {
+  min-width: 0;
+  max-width: 100%;
+}
+/* 所有可交互控件不吃掉父级宽度 */
+input,
+select,
+textarea,
+button,
+.segmented,
+.segmented button,
+.pre,
+.cmd,
+pre,
+.field-note,
+.check-row,
+.switch-row {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.segmented {
+  width: 100%;
+  min-width: 0;
+}
+.segmented button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+label {
+  overflow-wrap: anywhere;
+}
+.cmd {
+  min-width: 0;
+}
+
+/* ===== 固定 z-index 层级表：内容 0 / 卡片 10 / dock 100 / 模态 1000 / 通知 1100 ===== */
+.page-shell {
+  position: relative;
+  z-index: var(--lg-z-content);
+}
+.surface,
+.connection-panel {
+  position: relative;
+  z-index: var(--lg-z-card);
+}
+.dock-wrap {
+  z-index: var(--lg-z-dock);
+}
+#notice {
+  z-index: var(--lg-z-notice);
+}
+
+/* ===== 焦点环：3px、双主题 ≥3:1（accent 蓝，深色自动提亮） ===== */
+button:focus-visible,
+input:focus-visible,
+[role="tab"]:focus-visible,
+[role="switch"]:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--lg-color-focus);
+  outline-offset: 3px;
+}
+
+/* ===== 动效：只 transform / opacity，交互反馈 ≤200ms，ease-out ===== */
+.segmented,
+.state,
+.sky-dot,
+.sat-bar i,
+.update-dialog,
+.update-overlay,
+.version-banner,
+.progress-fill {
+  transition-property: transform, opacity;
+  transition-duration: var(--lg-motion-fast);
+  transition-timing-function: var(--lg-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+:root[data-reduce-motion] *,
+:root[data-reduce-motion] *::before,
+:root[data-reduce-motion] *::after {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* ===== 材质三档降级 =====
+   rich   : Chromium 支持 url() backdrop-filter，保留 refraction.js 透镜
+   glass  : 仅支持 blur()，用 CSS 毛玻璃
+   static : 减弱动效 / 低对比，静态半透明 */
+:root[data-material="glass"] .dock-lens {
+  background: color-mix(in srgb, var(--lg-color-accent) 16%, var(--surface)) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  backdrop-filter: blur(12px) saturate(120%) !important;
+}
+:root[data-material="static"] .dock-tray,
+:root[data-material="static"] .dock-lens,
+:root[data-material="static"] .top-toolbar-tray {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+:root[data-material="static"] .dock-lens {
+  background: color-mix(in srgb, var(--lg-color-accent) 14%, var(--surface)) !important;
+  box-shadow: inset 0 1px 0 var(--glass-rim-2, #fff8) !important;
+}
+/* 无滤镜环境下 mask 伪元素会渲染成黑块，静态档直接关闭 */
+:root[data-material="static"] .dock-lens::before,
+:root[data-material="static"] .dock-lens::after {
+  content: none !important;
+  display: none !important;
+}
+/* 无滤镜环境下按钮的 mask 棱镜高光会铺满成灰白块，静态档关闭 */
+:root[data-material="static"] button:not(.dock-tab)::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* ==========================================================================
+   更新提示模态（唯一强确认态载体）
+   ========================================================================== */
+.update-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--lg-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(9, 20, 36, 0.44);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  opacity: 1;
+}
+.update-overlay[hidden] {
+  display: none !important;
+}
+.update-dialog {
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: 26px 24px 22px;
+  border-radius: var(--lg-radius-panel);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 20px 60px rgba(9, 24, 48, 0.28), inset 0 1px 0 var(--glass-rim-2, #fff8);
+  text-align: center;
+}
+.update-badge {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, #80c8ff, var(--lg-color-accent-strong));
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--lg-color-accent) 38%, transparent);
+}
+.update-badge svg {
+  width: 28px;
+  height: 28px;
+}
+.update-dialog h2 {
+  font-size: 21px;
+  letter-spacing: -0.4px;
+}
+.update-dialog p {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.update-version {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.update-version b {
+  font-weight: 600;
+}
+.update-version svg {
+  width: 18px;
+  height: 18px;
+  color: var(--lg-color-accent);
+}
+.update-notes {
+  margin: 16px 0 0;
+  padding: 0 0 0 18px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--lg-color-ink-2);
+}
+.update-notes li + li {
+  margin-top: 4px;
+}
+.update-permission {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px !important;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--lg-color-accent) 9%, transparent);
+  text-align: left;
+  font-size: 12px;
+}
+.update-permission svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  margin-top: 1px;
+  color: var(--lg-color-accent);
+}
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+.update-actions .lg-btn {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.update-actions .lg-btn.primary {
+  flex-basis: 100%;
+}
+.update-progress {
+  margin-top: 18px;
+}
+.progress-track {
+  height: 8px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+}
+.progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, #80c8ff, var(--lg-color-accent-strong));
+}
+.update-progress span {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--lg-color-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   关于页
+   ========================================================================== */
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-radius: var(--lg-radius-panel);
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, #8bbaff25, transparent 65%), var(--panel);
+}
+.about-logo {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, #4a86f7, var(--lg-color-accent-strong));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--lg-color-accent) 34%, transparent);
+}
+.about-logo svg {
+  width: 38px;
+  height: 38px;
+}
+.about-hero h2 {
+  font-size: 22px;
+  letter-spacing: -0.5px;
+}
+.about-hero p {
+  margin-top: 6px;
+}
+.about-version {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 11px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--lg-color-accent) 12%, transparent);
+  color: var(--lg-color-accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.about-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+.about-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.about-row > svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  color: var(--lg-color-accent);
+}
+.about-row .about-text {
+  min-width: 0;
+  flex: 1;
+}
+.about-row .about-label {
+  display: block;
+  font-size: 12px;
+  color: var(--lg-color-ink-2);
+}
+.about-row .about-value {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.about-row .lg-btn {
+  flex: none;
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+.about-sign {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--lg-color-ink-2);
+}
+.version-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 2px 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--lg-color-accent) 10%, var(--panel));
+  font-size: 13px;
+  min-height: 0;
+}
+.version-banner[hidden] {
+  display: none !important;
+}
+.version-banner .lg-btn {
+  flex: none;
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+/* 核心组件对齐 Lens token（后置覆盖，确保单一圆角/焦点/强调色体系） */
+.surface {
+  border-radius: var(--lg-radius-panel);
+}
+.connection-panel {
+  border-radius: calc(var(--lg-radius-panel) + 4px);
+}
+input:not([type="range"]),
+.cmd,
+.segmented,
+.segmented button {
+  border-radius: var(--lg-radius-control);
+}
+
+/* 按钮文案保持单行，避免窄屏被压成竖排 */
+.lg-btn {
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .about-row {
+    flex-wrap: wrap;
+  }
+  .about-row .about-text {
+    flex-basis: 100%;
+  }
+  .about-row .lg-btn {
+    flex: 1 1 0;
+  }
 }

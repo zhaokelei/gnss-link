@@ -4,6 +4,28 @@ let role = "sender",
   mode = "lan",
   running = false,
   ready = false;
+
+/* ===== Lens 材质三档降级 =====
+   rich: 支持 url() backdrop-filter，保留 refraction.js + 弹簧透镜
+   glass: 仅 blur()，CSS 毛玻璃
+   static: 减弱动效/透明度，静态半透明 */
+function applyMaterial() {
+  const reduce =
+    matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    matchMedia("(prefers-reduced-transparency: reduce)").matches ||
+    document.documentElement.hasAttribute("data-reduce-motion");
+  const supports = (v) =>
+    !!(window.CSS && (CSS.supports("backdrop-filter", v) || CSS.supports("-webkit-backdrop-filter", v)));
+  const material = reduce
+    ? "static"
+    : supports("url(#a)")
+      ? "rich"
+      : supports("blur(4px)")
+        ? "glass"
+        : "static";
+  document.documentElement.dataset.material = material;
+}
+applyMaterial();
 const native = (action, data = {}) =>
   window.Android?.dispatch(action, JSON.stringify(data));
 function select(group, value) {
@@ -362,6 +384,10 @@ window.GnssUI = {
         $("adb-check").textContent =
           `adb shell appops get ${data.package} android:mock_location`;
       }
+      if (data.version) {
+        $("about-version").textContent = data.version;
+        $("update-current").textContent = data.version;
+      }
       refreshMode();
       document.documentElement.toggleAttribute(
         "data-reduce-motion",
@@ -388,12 +414,17 @@ window.GnssUI = {
       $("probe-result").textContent = data.message;
       $("probe").disabled = data.running || running;
     } else if (type === "notice") notice(data);
-    else if (type === "motion")
+    else if (type === "motion") {
       document.documentElement.toggleAttribute("data-reduce-motion", data);
+      applyMaterial();
+    } else if (type === "update-check") onUpdateCheck(data);
+    else if (type === "update-progress") onUpdateProgress(data);
+    else if (type === "update-ready") onUpdateReady(data);
   },
+  handleBack,
 };
 attachLiquidDock(document.querySelector(".bottom-dock"), (index) => {
-  ["link", "satellites", "settings"].forEach(
+  ["link", "satellites", "settings", "about"].forEach(
     (name, i) => ($(`page-${name}`).hidden = i !== Number(index)),
   );
   window.scrollTo(0, 0);
@@ -407,3 +438,187 @@ applyTheme(
 refreshRole();
 refreshMode();
 native("ready");
+
+/* ==========================================================================
+   关于页：链接跳转 / 复制
+   ========================================================================== */
+const openUrl = (url) => {
+  if (window.Android) native("open-url", { url });
+  else window.open(url, "_blank", "noopener");
+};
+document.querySelectorAll("[data-url]").forEach((button) => {
+  button.onclick = () => openUrl(button.dataset.url);
+});
+document.querySelectorAll("[data-copy]").forEach((button) => {
+  button.onclick = () => {
+    const text = $(button.dataset.copy).textContent.trim();
+    if (window.Android) native("copy", { text });
+    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => notice("已复制到剪贴板"));
+  };
+});
+
+/* ==========================================================================
+   自更新：WebView 内 HTML 模态（唯一强确认态）
+   - 遮罩不点击关闭；返回键 / Esc = 取消
+   - 焦点陷阱；初始焦点落在模态内；3px 焦点环（见 app.css）
+   - 主按钮含下载体积、tabular-nums、窄屏 flex-wrap
+   ========================================================================== */
+let updateInfo = {};
+let updatePhase = "prompt";
+let updateReady = false;
+let previousFocus = null;
+
+function showVersionBanner(text) {
+  $("version-banner-text").textContent = text;
+  $("version-banner").hidden = false;
+}
+
+function applyUpdatePhase() {
+  const main = $("update-now");
+  if (updatePhase === "downloading") {
+    main.disabled = true;
+    main.textContent = "下载中…";
+    $("update-progress").hidden = false;
+  } else {
+    main.disabled = false;
+    $("update-progress").hidden = true;
+    if (updatePhase === "ready") {
+      main.textContent = "安装更新";
+      main.onclick = () => native("install-update");
+    } else {
+      const size = Number(updateInfo.size) || 0;
+      main.textContent = `更新 · ${fmtSize(size)}`;
+      main.onclick = startDownload;
+    }
+  }
+}
+
+function startDownload() {
+  native("download-update");
+  updatePhase = "downloading";
+  applyUpdatePhase();
+}
+
+function openUpdateModal(phase = "prompt") {
+  updatePhase = phase;
+  $("update-latest").textContent = updateInfo.latest || updateInfo.tag || "—";
+  $("update-current").textContent = $("about-version").textContent;
+  const notes = $("update-notes");
+  notes.replaceChildren();
+  String(updateInfo.notes || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 5)
+    .forEach((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      notes.append(li);
+    });
+  notes.hidden = notes.childElementCount === 0;
+  $("update-title").textContent = phase === "ready" ? "下载完成" : "发现新版本";
+  $("update-desc").textContent =
+    phase === "ready"
+      ? "安装包已下载完成，点击安装即可覆盖当前版本。"
+      : "新版本已发布，是否立即更新？";
+  applyUpdatePhase();
+  previousFocus = document.activeElement;
+  $("update-modal").hidden = false;
+  document.body.style.overflow = "hidden";
+  requestAnimationFrame(() => $("update-now").focus());
+}
+
+function closeUpdateModal() {
+  if ($("update-modal").hidden) return;
+  $("update-modal").hidden = true;
+  document.body.style.overflow = "";
+  if (previousFocus && previousFocus.focus) previousFocus.focus();
+}
+
+/** 原生返回键调用：模态打开则消费并返回 true，否则交还 Activity */
+function handleBack() {
+  if ($("update-modal").hidden) return false;
+  closeUpdateModal();
+  return true;
+}
+
+function onUpdateCheck(data) {
+  if (!data) return;
+  updateInfo = data;
+  if (data.needUpdate) {
+    const version = data.latest || data.tag || "";
+    $("update-state").textContent = `发现新版本 ${version}。`;
+    showVersionBanner(`发现新版本 ${version}`);
+    openUpdateModal("prompt");
+  } else {
+    $("update-state").textContent = data.current
+      ? `已是最新版本 ${data.current}。`
+      : "已是最新版本。";
+    $("version-banner").hidden = true;
+  }
+}
+
+function onUpdateProgress(data) {
+  const value = Math.max(0, Math.min(100, Number(data && data.value) || 0));
+  $("progress-fill").style.transform = `scaleX(${(value / 100).toFixed(3)})`;
+  $("progress-text").textContent = `正在下载 ${Math.round(value)}%`;
+}
+
+function onUpdateReady(data) {
+  updateReady = true;
+  updateInfo = { ...updateInfo, ...(data || {}) };
+  showVersionBanner("安装包已下载，点击安装");
+  if (!$("update-modal").hidden) {
+    updatePhase = "ready";
+    applyUpdatePhase();
+    $("update-now").focus();
+  }
+}
+
+$("check-update").onclick = () => {
+  if (!window.Android) {
+    $("update-state").textContent = "预览模式：请在 Android 应用中检查更新。";
+    return;
+  }
+  $("update-state").textContent = "正在检查更新…";
+  native("check-update");
+};
+$("banner-update").onclick = () => {
+  if (updateReady) openUpdateModal("ready");
+  else if (updateInfo.latest) openUpdateModal("prompt");
+  else if (window.Android) native("check-update");
+};
+$("update-skip").onclick = () => {
+  native("skip-version", { tag: updateInfo.tag || updateInfo.latest || "" });
+  $("version-banner").hidden = true;
+  $("update-state").textContent = "已跳过此版本，不再提示。";
+  closeUpdateModal();
+};
+$("update-later").onclick = closeUpdateModal;
+
+/* 焦点陷阱：Tab / Shift+Tab 在模态内循环；Esc 取消 */
+$("update-modal").addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeUpdateModal();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const list = Array.from($("update-modal").querySelectorAll("button:not(:disabled)"));
+  if (!list.length) return;
+  const first = list[0];
+  const last = list[list.length - 1];
+  if (!$("update-modal").contains(document.activeElement)) {
+    event.preventDefault();
+    first.focus();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
+// 首次进入静默检查；离线或失败由原生侧静默跳过，不打扰用户
+if (window.Android) native("check-update");

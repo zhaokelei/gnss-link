@@ -101,7 +101,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 70;
+  z-index: var(--lg-z-dock, 100);
   padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
   display: flex;
@@ -112,9 +112,9 @@
   position: relative;
   pointer-events: auto;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
-  width: min(416px, 100%);
+  width: min(370px, 100%);
   padding: 4px;
   border-radius: var(--r-pill);
   touch-action: pan-y;
@@ -174,7 +174,7 @@
   padding: 1.5px;
   background:
     radial-gradient(ellipse 52% 82% at var(--touch-x) var(--touch-y), rgba(255, 255, 255, 0.96), transparent 78%),
-    linear-gradient(148deg, rgba(255, 255, 255, 0.88), rgba(155, 218, 255, 0.46) 28%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 205, 140, 0.50) 76%, rgba(165, 238, 255, 0.88));
+    linear-gradient(148deg, rgba(255, 255, 255, 0.88), rgba(155, 218, 255, 0.46) 28%, rgba(255, 255, 255, 0.08) 50%, rgba(150, 205, 255, 0.50) 76%, rgba(165, 238, 255, 0.88));
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -285,7 +285,7 @@ button:not(.dock-tab):not(.ios-switch)::after {
       rgba(255, 255, 255, calc(0.42 + var(--btn-press) * 0.48)),
       rgba(155, 218, 255, calc(0.18 + var(--btn-press) * 0.34)) 28%,
       rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 205, 140, calc(0.14 + var(--btn-press) * 0.38)) 76%,
+      rgba(150, 205, 255, calc(0.14 + var(--btn-press) * 0.38)) 76%,
       rgba(165, 238, 255, calc(0.40 + var(--btn-press) * 0.50)));
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);

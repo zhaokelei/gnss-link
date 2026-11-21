@@ -1,5 +1,15 @@
 # GNSS Link — 局域网 GPS 共享 / 模拟定位
 
+## 本地开发版 1.5.0
+
+本版在 1.4.0 基础上完成三项交付：
+
+- **自更新**：启动及「关于 → 检查更新」会静默检查 GitHub Releases（带 `User-Agent`）。仅当存在更高版本时弹出 WebView 内确认模态，主按钮写明下载体积（如「更新 · 4.7 MB」）。用户可选「立即更新」或「跳过此版本（不再提示）」——后者会永久记住该版本；离线、限流或解析失败一律静默跳过，不打扰。APK 下载到 `cache/update/` 后经 FileProvider 授权系统安装器覆盖安装，首次需允许「安装未知应用」。返回键在更新模态中等于取消。
+- **关于页**：新增第 4 个页签，展示项目名 GNSS Link、当前版本号、作者「小磊」，以及 GitHub 项目地址 `https://github.com/zhaokelei/gnss-link` 与主页 `www.iqiq.cn`，两者均可点击跳转、可一键复制。
+- **视觉升级与错位修复**：按 Lens Design System v1.1.2 落地 `--lg-` 设计变量（单一 accent 蓝、28px 面板圆角、3px 焦点环、固定 z-index 层级表）；材质三档降级（SVG 透镜 / CSS 毛玻璃 / 静态半透明）；动效仅 transform/opacity、反馈 ≤200ms。修复真机设置页卡片、分段控件、输入框右溢出被裁的问题（grid 项 `min-width:0`、控件 `max-width:100%`、禁止横向滚动、dock 固定层级并预留底部空间）。
+
+桥接新增：前端 → 原生 `check-update` / `download-update` / `install-update` / `skip-version` / `open-url`；原生 → 前端 `update-check`（latest/tag/size/needUpdate）/ `update-progress`（0–100）/ `update-ready`。未改动定位收发与模拟位置注入逻辑，未引入坐标系转换或加密。
+
 ## 本地开发版 1.4.0
 
 本版面向车机与无人值守场景，累计新增四项能力：

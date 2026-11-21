@@ -26,6 +26,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
 import top.wxip.gpslink.core.*
@@ -33,6 +34,10 @@ import top.wxip.gpslink.mock.MockLocationEngine
 import top.wxip.gpslink.service.ReceiveService
 import top.wxip.gpslink.service.SendService
 import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 /** Local-only presentation host. Location and transport remain in foreground services. */
 class MainActivity : AppCompatActivity(), LinkBus.Observer {
@@ -51,6 +56,15 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private var pendingAction: (() -> Unit)? = null
     private val logLines = ArrayDeque<String>()
     private val remoteExpiry = Runnable { publishSatellites() }
+
+    // 自更新：保留最新 release 的下载地址与已落盘 APK，供前端按需触发
+    private var lastDownloadUrl = ""
+    private var lastApkPath = ""
+    private val updatePrefs by lazy { getSharedPreferences("update", Context.MODE_PRIVATE) }
+    private val currentVersion: String by lazy {
+        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.5.0" }
+        catch (_: Throwable) { "1.5.0" }
+    }
     private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (hasLocationPermission()) {
             if (resumed) satMonitor.start()
@@ -146,6 +160,12 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         "track-play" -> playTrack(data.optString("path"))
                         "track-delete" -> deleteTrack(data.optString("path"))
                         "nmea" -> configureNmea(data.optBoolean("enabled"), data.optInt("port"))
+                        // 自更新桥接
+                        "check-update" -> checkUpdate()
+                        "download-update" -> downloadUpdate(lastDownloadUrl)
+                        "install-update" -> installUpdate(lastApkPath)
+                        "skip-version" -> skipVersion(data.optString("tag"))
+                        "open-url" -> openExternalUrl(data.optString("url"))
                     }
                 } catch (e: Exception) { toast("操作未完成：${e.message}") }
             }
@@ -167,6 +187,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("nmeaEnabled", Prefs.loadNmeaEnabled(this))
             .put("nmeaPort", Prefs.loadNmeaPort(this))
             .put("package", packageName)
+            .put("version", currentVersion)
             .put("dark", resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
             .put("reduceMotion", reducedMotion()))
     }
@@ -278,6 +299,169 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             if (useBt && btMac.isBlank()) { toast("请先在设置中选择蓝牙接收设备"); return }
             SendService.start(this, cfg.host, cfg.port, cfg.sid, cfg.intervalMs, useBt, btMac)
         }
+    }
+
+    /* ==================== 自更新 ====================
+       仅访问 GitHub releases/latest；离线、限流或解析失败一律静默跳过，不打扰用户。 */
+    companion object {
+        private const val RELEASES_API = "https://api.github.com/repos/zhaokelei/gnss-link/releases/latest"
+        private const val UPDATER_UA = "GNSS-Link-Updater/1.5.0"
+    }
+
+    /** 比较形如 v1.5.0 的版本号，按每段数字逐位比较 */
+    private fun newerVersion(remote: String, current: String): Boolean {
+        val numbers = { text: String ->
+            Regex("(\\d+)").findAll(text).map { it.value.toIntOrNull() ?: 0 }.toList()
+        }
+        val a = numbers(remote)
+        val b = numbers(current)
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrElse(i) { 0 }
+            val y = b.getOrElse(i) { 0 }
+            if (x != y) return x > y
+        }
+        return false
+    }
+
+    /** 永久跳过某个 tag：写入本地偏好，后续启动不再提示 */
+    private fun skipVersion(tag: String) {
+        if (tag.isBlank()) return
+        updatePrefs.edit().putString("skipped_tag", tag).apply()
+        LinkBus.log("已跳过版本 $tag，不再提示")
+    }
+
+    private fun checkUpdate() {
+        thread {
+            try {
+                val conn = URL(RELEASES_API).openConnection() as HttpURLConnection
+                conn.connectTimeout = 12000
+                conn.readTimeout = 15000
+                conn.setRequestProperty("User-Agent", UPDATER_UA)
+                conn.setRequestProperty("Accept", "application/vnd.github+json")
+                conn.instanceFollowRedirects = true
+                conn.connect()
+                if (conn.responseCode != HttpURLConnection.HTTP_OK) return@thread
+                val release = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                val tag = release.optString("tag_name")
+                val latest = tag.removePrefix("v").removePrefix("V")
+                val skipped = updatePrefs.getString("skipped_tag", "") == tag
+                val needUpdate = latest.isNotBlank() && newerVersion(latest, currentVersion) && !skipped
+
+                var downloadUrl = ""
+                var size = 0L
+                val assets = release.optJSONArray("assets")
+                if (assets != null) {
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.optJSONObject(i) ?: continue
+                        val name = asset.optString("name")
+                        if (name.endsWith(".apk", ignoreCase = true)) {
+                            downloadUrl = asset.optString("browser_download_url")
+                            size = asset.optLong("size")
+                            if (name.contains("arm64", ignoreCase = true)) break
+                        }
+                    }
+                }
+                val notes = release.optString("body")
+                    .lines().map { it.trim().trimStart('-', '*').trim() }
+                    .filter { it.length > 1 && !it.startsWith("#") }
+                    .take(5).joinToString("\n")
+                runOnUiThread {
+                    lastDownloadUrl = downloadUrl
+                    emit("update-check", JSONObject()
+                        .put("tag", tag)
+                        .put("latest", latest)
+                        .put("current", currentVersion)
+                        .put("size", size)
+                        .put("needUpdate", needUpdate)
+                        .put("skipped", skipped)
+                        .put("notes", notes))
+                }
+            } catch (_: Throwable) {
+                // 离线、限流、解析失败：静默跳过
+            }
+        }
+    }
+
+    private fun downloadUpdate(url: String) {
+        if (url.isBlank()) { toast("下载地址不可用，请稍后重试"); return }
+        thread {
+            try {
+                val dir = File(cacheDir, "update").apply { mkdirs() }
+                val apk = File(dir, "app-update.apk")
+                if (apk.exists()) apk.delete()
+                val conn = URL(url).openConnection() as HttpURLConnection
+                conn.connectTimeout = 15000
+                conn.readTimeout = 20000
+                conn.setRequestProperty("User-Agent", UPDATER_UA)
+                conn.instanceFollowRedirects = true
+                conn.connect()
+                if (conn.responseCode !in 200..299) throw IllegalStateException("HTTP ${conn.responseCode}")
+                val total = conn.contentLength.toDouble()
+                conn.inputStream.use { input ->
+                    FileOutputStream(apk).use { out ->
+                        val buffer = ByteArray(8192)
+                        var written = 0L
+                        var read = input.read(buffer)
+                        while (read != -1) {
+                            out.write(buffer, 0, read)
+                            written += read
+                            if (total > 0) {
+                                val pct = (written * 100 / total).toInt().coerceIn(0, 100)
+                                runOnUiThread { emit("update-progress", JSONObject().put("value", pct)) }
+                            }
+                            read = input.read(buffer)
+                        }
+                    }
+                }
+                if (apk.length() < 1024) throw IllegalStateException("安装包不完整")
+                runOnUiThread {
+                    lastApkPath = apk.absolutePath
+                    emit("update-progress", JSONObject().put("value", 100))
+                    emit("update-ready", JSONObject()
+                        .put("path", apk.absolutePath)
+                        .put("size", apk.length()))
+                }
+            } catch (t: Throwable) {
+                runOnUiThread { toast("下载失败：${t.message}") }
+            }
+        }
+    }
+
+    private fun installUpdate(path: String) {
+        val apk = File(path)
+        if (!apk.exists() || apk.length() < 1024) {
+            toast("安装包不存在或不完整，请重新下载")
+            return
+        }
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apk)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            if (intent.resolveActivity(packageManager) != null) startActivity(intent)
+            else toast("系统没有可用的安装程序")
+        } catch (t: Throwable) {
+            toast("无法打开安装界面：${t.message}")
+        }
+    }
+
+    private fun openExternalUrl(url: String) {
+        if (!url.startsWith("https://")) return toast("链接无效")
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (t: Throwable) {
+            toast("无法打开浏览器：${t.message}")
+        }
+    }
+
+    /** 返回键先交给 WebView 模态：打开则取消，未打开才退出 Activity */
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        web.evaluateJavascript(
+            "Boolean(window.GnssUI && window.GnssUI.handleBack && window.GnssUI.handleBack())"
+        ) { result -> if (result != "true") super.onBackPressed() }
     }
 
     private fun reducedMotion() = Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
