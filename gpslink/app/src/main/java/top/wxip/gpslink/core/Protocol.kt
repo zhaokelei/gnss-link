@@ -21,6 +21,9 @@ object Protocol {
     /** 默认 UDP 端口 */
     const val DEFAULT_PORT = 7007
 
+    /** NMEA over TCP 的行业约定端口 */
+    const val DEFAULT_NMEA_PORT = 10110
+
     /** 默认采样间隔：1Hz */
     const val DEFAULT_INTERVAL_MS = 1000
 

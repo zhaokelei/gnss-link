@@ -38,7 +38,11 @@ data class LinkStatus(
     val verifyProvider: String = "",
     val verifyLat: Double = 0.0,
     val verifyLon: Double = 0.0,
-    val verifyDeltaM: Double = -1.0
+    val verifyDeltaM: Double = -1.0,
+    /** NMEA 输出：0 表示未开启 */
+    val nmeaPort: Int = 0,
+    /** 当前连上 NMEA 端口的客户端数量 */
+    val nmeaClients: Int = 0
 )
 
 /**

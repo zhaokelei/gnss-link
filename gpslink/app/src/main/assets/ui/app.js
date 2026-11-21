@@ -115,6 +115,17 @@ $("track-toggle").onclick = () => {
 
 $("track-refresh").onclick = () => native("tracks");
 
+const pushNmea = () =>
+  native("nmea", {
+    enabled: isOn("nmea"),
+    port: Number($("nmea-port").value) || 10110,
+  });
+$("nmea").onclick = () => {
+  setSwitch("nmea", !isOn("nmea"));
+  pushNmea();
+};
+$("nmea-port").addEventListener("change", pushNmea);
+
 $("copy-adb").onclick = () =>
   native("copy", {
     text: `${$("adb-cmd").textContent}\n${$("adb-check").textContent}`,
@@ -271,6 +282,14 @@ function renderStatus(s) {
   $("verify-result").textContent = !s.verifyAvailable
     ? "系统回读不可用，请检查模拟位置授权"
     : `系统回读偏差 ${number(s.verifyDeltaM)} m · ${s.verifyMock ? "已标记模拟位置" : "未标记模拟位置"}`;
+  const nmeaOn = s.nmeaPort > 0;
+  $("nmea-state").textContent = nmeaOn
+    ? `监听 ${s.nmeaPort} · ${s.nmeaClients || 0} 个连接`
+    : "未开启";
+  $("nmea-address").textContent =
+    nmeaOn && s.localIp
+      ? `车机连接 ${s.localIp}:${s.nmeaPort}`
+      : "开始共享后显示连接地址";
 }
 // SBAS augments multiple satellite systems and has no single national flag.
 const satelliteFlags = {
@@ -332,6 +351,8 @@ window.GnssUI = {
       select("inject", data.injectMs);
       setSwitch("autostart", data.autoStart);
       setSwitch("track-toggle", data.trackEnabled);
+      setSwitch("nmea", data.nmeaEnabled);
+      if (data.nmeaPort) $("nmea-port").value = data.nmeaPort;
       $("autostart-hint").textContent = data.autoStart
         ? "下次开机将按上次使用的角色自动运行。"
         : "";

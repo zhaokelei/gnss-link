@@ -29,6 +29,8 @@ import top.wxip.gpslink.R
 import top.wxip.gpslink.core.LinkBus
 import top.wxip.gpslink.core.LocationFrame
 import top.wxip.gpslink.core.NetInfo
+import top.wxip.gpslink.core.Nmea
+import top.wxip.gpslink.core.NmeaServer
 import top.wxip.gpslink.core.Prefs
 import top.wxip.gpslink.core.Protocol
 import top.wxip.gpslink.core.Role
@@ -159,6 +161,11 @@ class SendService : Service(), LocationListener {
     private var lastSatSentAt = 0L
 
     private var wakeLock: PowerManager.WakeLock? = null
+
+    /** NMEA over TCP 输出，null 表示未开启 */
+    private var nmea: NmeaServer? = null
+    private var nmeaEnabled = false
+    private var nmeaPort = Protocol.DEFAULT_NMEA_PORT
 
     override fun onCreate() {
         super.onCreate()
@@ -305,6 +312,13 @@ class SendService : Service(), LocationListener {
         lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         acquireWakeLock()
 
+        // NMEA over TCP：给车机导航/上位机留一条不依赖模拟位置授权的通路
+        nmeaEnabled = Prefs.loadNmeaEnabled(this)
+        nmeaPort = Prefs.loadNmeaPort(this)
+        if (nmeaEnabled) {
+            nmea = NmeaServer(nmeaPort) { LinkBus.log(it) }.also { it.start() }
+        }
+
         // 发送队列统一走后台线程：蓝牙的 write 是阻塞调用，放在主线程会 ANR
         sendThread = HandlerThread("gps-send").also { it.start() }
         sendHandler = Handler(sendThread!!.looper)
@@ -384,6 +398,8 @@ class SendService : Service(), LocationListener {
         socket = null
         bt?.stop()
         bt = null
+        nmea?.stop()
+        nmea = null
         satMonitor?.stop()
         satMonitor = null
         latestSats = emptyList()
@@ -447,6 +463,10 @@ class SendService : Service(), LocationListener {
         }
 
         val frame = LocationFrame.fromLocation(location)
+
+        // NMEA 输出与 UDP/蓝牙链路相互独立：只要开了就推送，
+        // 不要求先配对接收端，车机连上就能拿到语句
+        nmea?.publish(Nmea.bytes(frame, latestSats.count { it.usedInFix }))
 
         LinkBus.update {
             it.copy(
@@ -615,7 +635,9 @@ class SendService : Service(), LocationListener {
                     rateHz = rate,
                     peer = if (useBt) it.peer else (peer?.hostAddress ?: ""),
                     online = online,
-                    txCount = txCount
+                    txCount = txCount,
+                    nmeaPort = if (nmeaEnabled) nmea?.actualPort ?: nmeaPort else 0,
+                    nmeaClients = nmea?.clientCount ?: 0
                 )
             }
 
