@@ -11,7 +11,7 @@ android {
         applicationId = "top.wxip.gpslink"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
+        versionCode = 13
         versionName = "1.2.3"
     }
 

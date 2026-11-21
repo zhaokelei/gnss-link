@@ -371,7 +371,10 @@ window.GnssUI = {
         applyTheme(
           localStorage.getItem("theme") || (data.dark ? "dark" : "light"),
         );
-      if (data.version) $("about-version").textContent = data.version;
+      if (data.version) {
+        $("about-version").textContent = data.version;
+        $("update-state").textContent = `当前版本 ${data.version}，点右侧按钮可立即检查。`;
+      }
       ready = true;
       native("tracks");
       native("check-update");
@@ -433,6 +436,20 @@ function onUpdateCheck(data) {
   $("update-bar").style.width = "0%";
   $("update-pct").textContent = "0%";
 
+  // 关于页的检查入口：无论有没有新版本都要给出结果，否则看起来像没反应
+  const checkBtn = $("check-update");
+  checkBtn.disabled = false;
+  checkBtn.textContent = "检查更新";
+  if (data.needUpdate) {
+    $("update-state").textContent = `发现新版本 ${data.latest}，可立即更新。`;
+  } else if (data.skipped) {
+    $("update-state").textContent = `已跳过 ${data.latest}，如需更新请到发布页下载。`;
+  } else if (data.latest) {
+    $("update-state").textContent = `已是最新版本 ${data.current}。`;
+  } else {
+    $("update-state").textContent = "检查失败，请确认网络后重试。";
+  }
+
   const notes = $("update-notes");
   notes.textContent = "";
   for (const line of String(data.notes || "").split("\n")) {
@@ -490,6 +507,13 @@ $("update-skip").addEventListener("click", () => {
   hideModal("update-modal");
 });
 $("update-later").addEventListener("click", () => hideModal("update-modal"));
+$("check-update").addEventListener("click", () => {
+  const btn = $("check-update");
+  btn.disabled = true;
+  btn.textContent = "检查中…";
+  $("update-state").textContent = "正在检查，请稍候…";
+  native("check-update");
+});
 $("open-log").addEventListener("click", () => {
   showModal("log-modal");
   $("log-body").innerHTML = '<p class="field-note">正在获取…</p>';

@@ -401,7 +401,17 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         .put("notes", notes))
                 }
             } catch (_: Throwable) {
-                // 服务器不可达、超时、内容格式异常：静默跳过
+                // 服务器不可达、超时、内容格式异常：回一个空结果，让手动检查的按钮能复位
+                runOnUiThread {
+                    emit("update-check", JSONObject()
+                        .put("tag", "")
+                        .put("latest", "")
+                        .put("current", currentVersion)
+                        .put("size", 0)
+                        .put("needUpdate", false)
+                        .put("skipped", false)
+                        .put("notes", ""))
+                }
             }
         }
     }
