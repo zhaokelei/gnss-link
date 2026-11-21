@@ -206,7 +206,7 @@
           <div class="page-heading">
             <div>
               <h1>偏好设置</h1>
-              <p>连接参数与设备授权</p>
+              <p>连接参数、设备授权与轨迹</p>
             </div>
           </div>
           <div class="settings-grid">
@@ -303,9 +303,75 @@
                 ><button class="lg-btn" id="mock">打开开发者选项</button>
               </div>
               <div class="check-row">
+                <span>后台定位</span><span id="check-background">待检查</span>
+              </div>
+              <button class="lg-btn" id="background">设为始终允许</button>
+              <div class="check-row">
                 <span>后台运行</span><span id="check-battery">待检查</span>
               </div>
               <button class="lg-btn" id="battery">设置电池白名单</button>
+            </article>
+            <article class="surface">
+              <div class="section-head">
+                <h2>命令行授权</h2>
+                <button class="lg-btn" id="copy-adb">复制命令</button>
+              </div>
+              <p class="field-note">
+                车机等设备常裁掉「选择模拟位置应用」这一项。用 USB 或无线 adb
+                执行下面这条命令，效果等同手动选中本应用，且重启不丢。
+              </p>
+              <pre class="cmd" id="adb-cmd">adb shell appops set top.wxip.gpslink android:mock_location allow</pre>
+              <p class="field-note">验证是否生效：</p>
+              <pre class="cmd" id="adb-check">adb shell appops get top.wxip.gpslink android:mock_location</pre>
+            </article>
+            <article class="surface">
+              <div class="section-head">
+                <h2>自动运行</h2>
+              </div>
+              <div class="switch-row">
+                <div class="switch-text">
+                  <span class="switch-label">开机自动启动</span>
+                  <p class="field-note">
+                    按上次使用的角色与参数自动运行，适合车机等每次都会断电的设备。
+                  </p>
+                </div>
+                <button
+                  class="switch"
+                  id="autostart"
+                  role="switch"
+                  aria-checked="false"
+                  aria-label="开机自动启动"
+                >
+                  <span></span>
+                </button>
+              </div>
+              <p class="field-note" id="autostart-hint"></p>
+            </article>
+            <article class="surface">
+              <div class="section-head">
+                <h2>轨迹记录</h2>
+                <button class="lg-btn" id="track-refresh">刷新</button>
+              </div>
+              <div class="switch-row">
+                <div class="switch-text">
+                  <span class="switch-label">收到定位时记录</span>
+                  <p class="field-note">
+                    按帧落盘到本地，回放时不需要发送端，可离线复现链路问题。
+                  </p>
+                </div>
+                <button
+                  class="switch"
+                  id="track-toggle"
+                  role="switch"
+                  aria-checked="false"
+                  aria-label="记录轨迹"
+                >
+                  <span></span>
+                </button>
+              </div>
+              <div class="track-list" id="track-list">
+                <p class="field-note">暂无轨迹</p>
+              </div>
             </article>
             <article class="surface">
               <h2>运行日志</h2>

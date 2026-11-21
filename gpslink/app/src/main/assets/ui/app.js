@@ -41,7 +41,7 @@ function refreshRole() {
     ? "接收另一台手机的定位"
     : "共享此设备的位置";
   $("action-hint").textContent = receive
-    ? "先在开发者选项中，将 GNSS Link 设为模拟位置应用。"
+    ? "需先把本机设为模拟位置应用。打不开开发者选项时，用设置页提供的 adb 命令。"
     : "两台设备连接同一 Wi-Fi 或热点，并使用相同房间码。";
   $("start").firstChild.textContent = receive ? "开始接收 " : "开始共享 ";
   $("stop").textContent = receive ? "停止接收" : "停止共享";
@@ -89,8 +89,90 @@ for (const action of [
   "permissions",
   "mock",
   "battery",
+  "background",
 ])
   $(action).onclick = () => native(action);
+
+function setSwitch(id, on) {
+  $(id).setAttribute("aria-checked", String(Boolean(on)));
+}
+const isOn = (id) => $(id).getAttribute("aria-checked") === "true";
+
+$("autostart").onclick = () => {
+  const next = !isOn("autostart");
+  setSwitch("autostart", next);
+  $("autostart-hint").textContent = next
+    ? "下次开机将按上次使用的角色自动运行。"
+    : "";
+  native("autostart", { enabled: next });
+};
+
+$("track-toggle").onclick = () => {
+  const next = !isOn("track-toggle");
+  setSwitch("track-toggle", next);
+  native("track-toggle", { enabled: next });
+};
+
+$("track-refresh").onclick = () => native("tracks");
+
+$("copy-adb").onclick = () =>
+  native("copy", {
+    text: `${$("adb-cmd").textContent}\n${$("adb-check").textContent}`,
+  });
+
+const fmtDuration = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60
+    ? `${s} 秒`
+    : `${Math.floor(s / 60)} 分 ${String(s % 60).padStart(2, "0")} 秒`;
+};
+const fmtSize = (b) =>
+  b >= 1048576
+    ? `${(b / 1048576).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(b / 1024))} KB`;
+
+function renderTracks(list) {
+  const box = $("track-list");
+  box.replaceChildren();
+  if (!Array.isArray(list) || list.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "field-note";
+    empty.textContent = "暂无轨迹";
+    box.append(empty);
+    return;
+  }
+  for (const track of list) {
+    const row = document.createElement("div");
+    row.className = "track-row";
+
+    const info = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "track-name";
+    name.textContent = track.name.replace(/\.jsonl$/, "");
+    const meta = document.createElement("div");
+    meta.className = "track-meta";
+    meta.textContent = `${track.points} 帧 · ${fmtDuration(track.durationMs)} · ${fmtSize(track.bytes)}`;
+    info.append(name, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "track-actions";
+    const play = document.createElement("button");
+    play.className = "lg-btn";
+    play.textContent = "回放";
+    play.onclick = () => native("track-play", { path: track.path });
+    const remove = document.createElement("button");
+    remove.className = "lg-btn";
+    remove.textContent = "删除";
+    remove.onclick = () => {
+      if (confirm(`删除轨迹 ${track.name}？`))
+        native("track-delete", { path: track.path });
+    };
+    actions.append(play, remove);
+
+    row.append(info, actions);
+    box.append(row);
+  }
+}
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem("theme", theme);
@@ -248,6 +330,17 @@ window.GnssUI = {
       select("mode", mode);
       select("sample", data.intervalMs);
       select("inject", data.injectMs);
+      setSwitch("autostart", data.autoStart);
+      setSwitch("track-toggle", data.trackEnabled);
+      $("autostart-hint").textContent = data.autoStart
+        ? "下次开机将按上次使用的角色自动运行。"
+        : "";
+      if (data.package) {
+        $("adb-cmd").textContent =
+          `adb shell appops set ${data.package} android:mock_location allow`;
+        $("adb-check").textContent =
+          `adb shell appops get ${data.package} android:mock_location`;
+      }
       refreshMode();
       document.documentElement.toggleAttribute(
         "data-reduce-motion",
@@ -258,13 +351,15 @@ window.GnssUI = {
           localStorage.getItem("theme") || (data.dark ? "dark" : "light"),
         );
       ready = true;
+      native("tracks");
     } else if (type === "status") renderStatus(data);
     else if (type === "checks")
-      for (const name of ["location", "dev", "mock", "battery"]) {
+      for (const name of ["location", "dev", "mock", "battery", "background"]) {
         $(`check-${name}`).textContent = data[name] ? "已就绪" : "待设置";
         $(`check-${name}`).classList.toggle("ok", data[name]);
       }
     else if (type === "satellites") renderSatellites(data);
+    else if (type === "tracks") renderTracks(data);
     else if (type === "log") {
       $("logs").textContent = data.join("\n") || "暂无日志";
     } else if (type === "bt") $("bt-device").textContent = data;
