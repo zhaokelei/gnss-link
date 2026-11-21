@@ -26,6 +26,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
 import top.wxip.gpslink.core.*
@@ -33,6 +34,10 @@ import top.wxip.gpslink.mock.MockLocationEngine
 import top.wxip.gpslink.service.ReceiveService
 import top.wxip.gpslink.service.SendService
 import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 /** Local-only presentation host. Location and transport remain in foreground services. */
 class MainActivity : AppCompatActivity(), LinkBus.Observer {
@@ -51,6 +56,16 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private var pendingAction: (() -> Unit)? = null
     private val logLines = ArrayDeque<String>()
     private val remoteExpiry = Runnable { publishSatellites() }
+
+    // 自更新：保留最新安装包的文件名与已落盘 APK，供前端按需触发
+    private var lastApkName = ""
+    private var lastApkSize = 0L
+    private var lastApkPath = ""
+    private val updatePrefs by lazy { getSharedPreferences("update", Context.MODE_PRIVATE) }
+    private val currentVersion: String by lazy {
+        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.7.0" }
+        catch (_: Throwable) { "1.7.0" }
+    }
     private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (hasLocationPermission()) {
             if (resumed) satMonitor.start()
@@ -146,6 +161,13 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         "track-play" -> playTrack(data.optString("path"))
                         "track-delete" -> deleteTrack(data.optString("path"))
                         "nmea" -> configureNmea(data.optBoolean("enabled"), data.optInt("port"))
+                        // 自更新桥接
+                        "check-update" -> checkUpdate()
+                        "download-update" -> downloadUpdate()
+                        "install-update" -> installUpdate(lastApkPath)
+                        "skip-version" -> skipVersion(data.optString("tag"))
+                        "fetch-log" -> fetchUpdateLog()
+                        "open-url" -> openExternalUrl(data.optString("url"))
                     }
                 } catch (e: Exception) { toast("操作未完成：${e.message}") }
             }
@@ -167,6 +189,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("nmeaEnabled", Prefs.loadNmeaEnabled(this))
             .put("nmeaPort", Prefs.loadNmeaPort(this))
             .put("package", packageName)
+            .put("version", currentVersion)
             .put("dark", resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
             .put("reduceMotion", reducedMotion()))
     }
@@ -278,6 +301,186 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             if (useBt && btMac.isBlank()) { toast("请先在设置中选择蓝牙接收设备"); return }
             SendService.start(this, cfg.host, cfg.port, cfg.sid, cfg.intervalMs, useBt, btMac)
         }
+    }
+
+    /* ==================== 自更新（FTP） ====================
+       更新包与更新日志都放在 FTP 的 download 目录，不走 HTTP 也不依赖 GitHub。
+       网络不通、服务器异常、目录为空一律静默跳过，不打扰主流程。 */
+    companion object {
+        private const val FTP_HOST = "140.143.141.192"
+        private const val FTP_PORT = 21
+        private const val FTP_USER = "gpslink"
+        private const val FTP_PASS = "969595288aA"
+        private const val FTP_DIR = "/download"
+        private const val LOG_FILE = "update-log.txt"
+    }
+
+    private fun ftp() = FtpClient(FTP_HOST, FTP_PORT, FTP_USER, FTP_PASS)
+
+    /** 从更新日志正文里截出某个版本的说明段落，找不到返回空串 */
+    private fun extractNotes(log: String, version: String): String {
+        val lines = log.lines()
+        val start = lines.indexOfFirst { l -> Regex("^##\\s*v?$version\\b").containsMatchIn(l.trim()) }
+        if (start < 0) return ""
+        return lines.drop(start + 1)
+            .takeWhile { !it.trimStart().startsWith("## ") }
+            .map { it.trim().trimStart('-', '*', '·').trim() }
+            .filter { it.isNotEmpty() }
+            .take(6)
+            .joinToString("\n")
+    }
+
+    /** 比较形如 v1.5.0 的版本号，按每段数字逐位比较 */
+    private fun newerVersion(remote: String, current: String): Boolean {
+        val numbers = { text: String ->
+            Regex("(\\d+)").findAll(text).map { it.value.toIntOrNull() ?: 0 }.toList()
+        }
+        val a = numbers(remote)
+        val b = numbers(current)
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrElse(i) { 0 }
+            val y = b.getOrElse(i) { 0 }
+            if (x != y) return x > y
+        }
+        return false
+    }
+
+    /** 永久跳过某个 tag：写入本地偏好，后续启动不再提示 */
+    private fun skipVersion(tag: String) {
+        if (tag.isBlank()) return
+        updatePrefs.edit().putString("skipped_tag", tag).apply()
+        LinkBus.log("已跳过版本 $tag，不再提示")
+    }
+
+    private fun checkUpdate() {
+        thread {
+            try {
+                var latestVer = ""
+                var apkName = ""
+                var apkSize = 0L
+                var notes = ""
+                ftp().use { client ->
+                    client.connect()
+                    // 目录里所有 gnss-link-x.y.z.apk 中取版本号最大者
+                    for (f in client.list(FTP_DIR)) {
+                        if (f.isDir || !f.name.endsWith(".apk", ignoreCase = true)) continue
+                        val v = Regex("\\d+\\.\\d+\\.\\d+").find(f.name)?.value ?: continue
+                        if (latestVer.isEmpty() || newerVersion(v, latestVer)) {
+                            latestVer = v
+                            apkName = f.name
+                            apkSize = f.size
+                        }
+                    }
+                    if (latestVer.isNotEmpty()) {
+                        runCatching { extractNotes(client.readText("$FTP_DIR/$LOG_FILE"), latestVer) }
+                            .onSuccess { notes = it }
+                    }
+                }
+                if (latestVer.isEmpty()) return@thread
+
+                val tag = "v$latestVer"
+                val skipped = updatePrefs.getString("skipped_tag", "") == tag
+                val needUpdate = newerVersion(latestVer, currentVersion) && !skipped
+                runOnUiThread {
+                    lastApkName = apkName
+                    lastApkSize = apkSize
+                    emit("update-check", JSONObject()
+                        .put("tag", tag)
+                        .put("latest", latestVer)
+                        .put("current", currentVersion)
+                        .put("size", apkSize)
+                        .put("needUpdate", needUpdate)
+                        .put("skipped", skipped)
+                        .put("notes", notes))
+                }
+            } catch (_: Throwable) {
+                // 服务器不可达、超时、目录为空：静默跳过
+            }
+        }
+    }
+
+    private fun downloadUpdate() {
+        val name = lastApkName
+        if (name.isBlank()) { toast("没有可用的安装包，请重新检查更新"); return }
+        thread {
+            try {
+                val dir = File(cacheDir, "update").apply { mkdirs() }
+                val apk = File(dir, "app-update.apk")
+                if (apk.exists()) apk.delete()
+                ftp().use { client ->
+                    client.connect()
+                    client.download("$FTP_DIR/$name", apk, lastApkSize) { pct ->
+                        runOnUiThread { emit("update-progress", JSONObject().put("value", pct)) }
+                    }
+                }
+                if (apk.length() < 1024) throw IllegalStateException("安装包不完整")
+                runOnUiThread {
+                    lastApkPath = apk.absolutePath
+                    emit("update-progress", JSONObject().put("value", 100))
+                    emit("update-ready", JSONObject()
+                        .put("path", apk.absolutePath)
+                        .put("size", apk.length()))
+                }
+            } catch (t: Throwable) {
+                runOnUiThread { toast("下载失败：${t.message}") }
+            }
+        }
+    }
+
+    /** 更新日志：整段拉 FTP 上的 txt 交给前端渲染 */
+    private fun fetchUpdateLog() {
+        thread {
+            try {
+                val text = ftp().use { client ->
+                    client.connect()
+                    client.readText("$FTP_DIR/$LOG_FILE")
+                }
+                runOnUiThread {
+                    emit("update-log", JSONObject().put("ok", true).put("text", text))
+                }
+            } catch (_: Throwable) {
+                runOnUiThread {
+                    emit("update-log", JSONObject().put("ok", false).put("text", ""))
+                }
+            }
+        }
+    }
+
+    private fun installUpdate(path: String) {
+        val apk = File(path)
+        if (!apk.exists() || apk.length() < 1024) {
+            toast("安装包不存在或不完整，请重新下载")
+            return
+        }
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apk)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            if (intent.resolveActivity(packageManager) != null) startActivity(intent)
+            else toast("系统没有可用的安装程序")
+        } catch (t: Throwable) {
+            toast("无法打开安装界面：${t.message}")
+        }
+    }
+
+    private fun openExternalUrl(url: String) {
+        if (!url.startsWith("https://")) return toast("链接无效")
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (t: Throwable) {
+            toast("无法打开浏览器：${t.message}")
+        }
+    }
+
+    /** 返回键先交给 WebView 模态：打开则取消，未打开才退出 Activity */
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        web.evaluateJavascript(
+            "Boolean(window.GnssUI && window.GnssUI.handleBack && window.GnssUI.handleBack())"
+        ) { result -> if (result != "true") super.onBackPressed() }
     }
 
     private fun reducedMotion() = Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f

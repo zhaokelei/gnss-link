@@ -371,8 +371,10 @@ window.GnssUI = {
         applyTheme(
           localStorage.getItem("theme") || (data.dark ? "dark" : "light"),
         );
+      if (data.version) $("about-version").textContent = data.version;
       ready = true;
       native("tracks");
+      native("check-update");
     } else if (type === "status") renderStatus(data);
     else if (type === "checks")
       for (const name of ["location", "dev", "mock", "battery", "background"]) {
@@ -387,13 +389,125 @@ window.GnssUI = {
     else if (type === "probe") {
       $("probe-result").textContent = data.message;
       $("probe").disabled = data.running || running;
-    } else if (type === "notice") notice(data);
+    }     else if (type === "notice") notice(data);
     else if (type === "motion")
       document.documentElement.toggleAttribute("data-reduce-motion", data);
+    else if (type === "update-check") onUpdateCheck(data);
+    else if (type === "update-progress") {
+      $("update-bar").style.width = `${data.value}%`;
+      $("update-pct").textContent = `${data.value}%`;
+    } else if (type === "update-ready") {
+      hideModal("update-modal");
+      native("install-update");
+    } else if (type === "update-log") {
+      if (data.ok && data.text) renderLog(data.text);
+      else {
+        $("log-body").innerHTML =
+          '<p class="field-note">获取失败，请检查网络</p>';
+        $("log-retry").hidden = false;
+      }
+    }
   },
 };
+/* ==================== 更新与更新日志 ==================== */
+let pendingTag = "";
+
+function showModal(id) {
+  $(id).hidden = false;
+  document.documentElement.classList.add("modal-open");
+}
+
+function hideModal(id) {
+  $(id).hidden = true;
+  if ([...document.querySelectorAll(".modal")].every((m) => m.hidden))
+    document.documentElement.classList.remove("modal-open");
+}
+
+function onUpdateCheck(data) {
+  pendingTag = data.tag || "";
+  $("update-current").textContent = data.current || "—";
+  $("update-latest").textContent = data.latest || "—";
+  $("update-go").textContent = data.size > 0 ? `更新 · ${fmtSize(data.size)}` : "立即更新";
+  $("update-go").disabled = false;
+  $("update-progress").hidden = true;
+  $("update-bar").style.width = "0%";
+  $("update-pct").textContent = "0%";
+
+  const notes = $("update-notes");
+  notes.textContent = "";
+  for (const line of String(data.notes || "").split("\n")) {
+    if (!line.trim()) continue;
+    const li = document.createElement("li");
+    li.textContent = line.trim();
+    notes.appendChild(li);
+  }
+  if (data.needUpdate) showModal("update-modal");
+}
+
+/** 把更新日志 txt 渲染成带版本标题的段落，全部走 textContent 避免注入 */
+function renderLog(text) {
+  const body = $("log-body");
+  body.textContent = "";
+  const frag = document.createDocumentFragment();
+  let inNote = false;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (/^[=\-_]{3,}$/.test(line)) continue;
+    if (/^GNSS Link\s*更新日志$/i.test(line)) continue;
+    const p = document.createElement("p");
+    if (line.startsWith("## ")) {
+      p.className = "log-h";
+      p.textContent = line.slice(3).trim();
+      inNote = true;
+    } else {
+      p.textContent = line;
+      if (inNote) p.classList.add("log-note");
+    }
+    frag.appendChild(p);
+  }
+  body.appendChild(frag);
+  body.scrollTop = 0;
+}
+
+document.querySelectorAll("#page-about [data-open]").forEach((btn) => {
+  btn.addEventListener("click", () =>
+    native("open-url", { url: btn.dataset.open }),
+  );
+});
+document.querySelectorAll("#page-about [data-copy]").forEach((btn) => {
+  btn.addEventListener("click", () =>
+    native("copy", { text: btn.dataset.copy }),
+  );
+});
+$("update-go").addEventListener("click", () => {
+  $("update-go").disabled = true;
+  $("update-progress").hidden = false;
+  native("download-update");
+});
+$("update-skip").addEventListener("click", () => {
+  if (pendingTag) native("skip-version", { tag: pendingTag });
+  hideModal("update-modal");
+});
+$("update-later").addEventListener("click", () => hideModal("update-modal"));
+$("open-log").addEventListener("click", () => {
+  showModal("log-modal");
+  $("log-body").innerHTML = '<p class="field-note">正在获取…</p>';
+  $("log-retry").hidden = true;
+  native("fetch-log");
+});
+$("log-close").addEventListener("click", () => hideModal("log-modal"));
+$("log-retry").addEventListener("click", () => {
+  $("log-body").innerHTML = '<p class="field-note">正在获取…</p>';
+  $("log-retry").hidden = true;
+  native("fetch-log");
+});
+document.querySelectorAll(".modal-mask").forEach((mask) => {
+  mask.addEventListener("click", () => hideModal(mask.parentElement.id));
+});
+
 attachLiquidDock(document.querySelector(".bottom-dock"), (index) => {
-  ["link", "satellites", "settings"].forEach(
+  ["link", "satellites", "settings", "about"].forEach(
     (name, i) => ($(`page-${name}`).hidden = i !== Number(index)),
   );
   window.scrollTo(0, 0);
