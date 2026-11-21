@@ -1,20 +1,21 @@
 # GNSS Link — 局域网 GPS 共享 / 模拟定位
 
-## 本地开发版 1.4.0
+## 当前版本 1.2.3
 
-本版面向车机与无人值守场景，累计新增四项能力：
+面向车机与无人值守场景，主要能力：
 
 - **NMEA over TCP 输出**：共享端在 10110 端口推送 `$GPRMC` / `$GPGGA`，车机导航填 IP 即可读取，彻底绕开模拟位置授权。
 
 - **开机自动运行**：设置页开关，按上次使用的角色与参数自动拉起服务，适合每次断电重启的车机。
 - **命令行授权引导**：车机常裁掉「选择模拟位置应用」，设置页直接给出 `adb shell appops set …` 命令并支持一键复制，效果等同手动授权且重启不丢。
 - **轨迹记录与回放**：接收端收到的定位帧按时间戳落盘，可离线回放，不需要发送端就能复现链路问题。
+- **应用内更新**：启动时读取 `https://gps.iqiq.cn/download/update-log.txt`，按其中的版本号与安装包名下载安装，关于页展示同一份日志。服务器目录放 `update-log.txt` 和 `gnss-link-x.y.z.apk` 即可，日志头部需要 `最新版本：x.y.z` 与 `安装包：gnss-link-x.y.z.apk` 两行。
 
-同时补齐 **后台定位**（`ACCESS_BACKGROUND_LOCATION`）引导 —— Android 14 起从开机广播启动定位类前台服务需要它，否则系统会直接拒绝。
+**后台定位**（`ACCESS_BACKGROUND_LOCATION`）引导 —— Android 14 起从开机广播启动定位类前台服务需要它，否则系统会直接拒绝。
 
 卫星柱状图以对应国旗和独立编号展示，欧盟旗标识伽利略系统，区域增强系统以地球图标标识，未知系统以卫星图标标识。柱间距缩小，柱高增加至原来的 1.5 倍，底边与编号统一对齐。禁用双指与双击缩放，固定页面缩放比例。
 
-界面采用本地 WebView，按工作区《液态玻璃水滴 UI SOP v1.1》重做，分为连接、卫星、设置三页。支持深浅色主题、玻璃浓度、弹簧水滴按钮与按需 RGB 边缘折射。所有页面资源随 APK 提供，无需联网加载界面。
+界面采用本地 WebView，分为连接、卫星、设置、关于四页。支持深浅色主题、玻璃浓度、弹簧水滴按钮与按需 RGB 边缘折射。所有页面资源随 APK 提供，无需联网加载界面。
 
 - 原生入口为 `gpslink/app/src/main/java/top/wxip/gpslink/MainActivity.kt`，负责 WebView 桥接、权限、蓝牙选择与服务调用。
 - 界面源码在 `gpslink/app/src/main/assets/ui/`。`liquid-dock.mjs`、`refraction.js` 和基础样式复用工作区 UI 技能包 v1.1。
@@ -26,8 +27,6 @@
 手机 A 采集 GPS → 通过局域网 UDP 发给手机 B → 手机 B 把它注入为**系统模拟位置**。
 B 之后打开高德 / 百度 / Google 地图，会认为自己就在 A 的位置，可以直接导航。
 适合没有 GPS 模块的平板、车机、开发板，或者做定位相关的测试。
-
-基于开源项目 [wxip/gnsslink](https://github.com/wxip/gnsslink) 重做。
 
 ```
 A 手机（有 GPS）                 Wi-Fi / 热点                 B 手机（无 GPS 也行）
@@ -68,11 +67,11 @@ docs/技术方案.md                    原理、坐标系、授权、性能、�
 README.md
 ```
 
-## 和参考项目的差别
+## 相比早期实现的改进
 
-参考项目 `gnsslink` 的核心只有 145 行 Java，思路完全正确，但只能算 demo。这一版做了这些事：
+早期实现只有一个 Activity、145 行 Java，思路可行但只能算 demo。这一版做了这些事：
 
-| 问题 | 参考项目 | 本工程 |
+| 问题 | 早期实现 | 本工程 |
 |---|---|---|
 | 息屏/切后台 | 逻辑写在 Activity，进程被冻结后定位就停 | 两个前台服务 + 常驻通知，可长期运行 |
 | 配对方式 | 手动输入 B 的内网 IP | UDP 广播自动发现，也支持手动指定 IP 兜底 |
@@ -502,4 +501,4 @@ adb shell dumpsys location | grep -i "satellites"
 
 > 本产品部分代码来自 GNSS Link (https://github.com/zhaokelei/gnss-link)，作者 zhaokelei，依据 NAL-1.0 署名许可协议使用。
 
-本项目基于 [wxip/gnsslink](https://github.com/wxip/gnsslink) 重做，本协议仅覆盖本项目原创部分。
+

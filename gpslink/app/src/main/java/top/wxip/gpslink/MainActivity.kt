@@ -63,8 +63,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private var lastApkPath = ""
     private val updatePrefs by lazy { getSharedPreferences("update", Context.MODE_PRIVATE) }
     private val currentVersion: String by lazy {
-        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.7.0" }
-        catch (_: Throwable) { "1.7.0" }
+        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.3" }
+        catch (_: Throwable) { "1.2.3" }
     }
     private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (hasLocationPermission()) {
@@ -303,19 +303,22 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
-    /* ==================== 自更新（FTP） ====================
-       更新包与更新日志都放在 FTP 的 download 目录，不走 HTTP 也不依赖 GitHub。
-       网络不通、服务器异常、目录为空一律静默跳过，不打扰主流程。 */
+    /* ==================== 自更新（HTTP） ====================
+       更新包与更新日志都由 gps.iqiq.cn 分发，服务器上的文件通过 FTP 上传维护。
+       网络不通、内容异常一律静默跳过，不打扰主流程。 */
     companion object {
-        private const val FTP_HOST = "140.143.141.192"
-        private const val FTP_PORT = 21
-        private const val FTP_USER = "gpslink"
-        private const val FTP_PASS = "969595288aA"
-        private const val FTP_DIR = "/download"
-        private const val LOG_FILE = "update-log.txt"
+        private const val BASE_URL = "https://gps.iqiq.cn/download"
+        private const val LOG_URL = "$BASE_URL/update-log.txt"
+        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.3"
     }
 
-    private fun ftp() = FtpClient(FTP_HOST, FTP_PORT, FTP_USER, FTP_PASS)
+    private fun open(url: String, readTimeout: Int = 20000): HttpURLConnection =
+        (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 12000
+            this.readTimeout = readTimeout
+            setRequestProperty("User-Agent", UPDATER_UA)
+            instanceFollowRedirects = true
+        }
 
     /** 从更新日志正文里截出某个版本的说明段落，找不到返回空串 */
     private fun extractNotes(log: String, version: String): String {
@@ -355,28 +358,32 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private fun checkUpdate() {
         thread {
             try {
-                var latestVer = ""
-                var apkName = ""
-                var apkSize = 0L
-                var notes = ""
-                ftp().use { client ->
-                    client.connect()
-                    // 目录里所有 gnss-link-x.y.z.apk 中取版本号最大者
-                    for (f in client.list(FTP_DIR)) {
-                        if (f.isDir || !f.name.endsWith(".apk", ignoreCase = true)) continue
-                        val v = Regex("\\d+\\.\\d+\\.\\d+").find(f.name)?.value ?: continue
-                        if (latestVer.isEmpty() || newerVersion(v, latestVer)) {
-                            latestVer = v
-                            apkName = f.name
-                            apkSize = f.size
-                        }
-                    }
-                    if (latestVer.isNotEmpty()) {
-                        runCatching { extractNotes(client.readText("$FTP_DIR/$LOG_FILE"), latestVer) }
-                            .onSuccess { notes = it }
-                    }
-                }
-                if (latestVer.isEmpty()) return@thread
+                // 版本号与安装包名由发布流程写在更新日志头部，这里直接读它
+                val conn = open(LOG_URL)
+                if (conn.responseCode != HttpURLConnection.HTTP_OK) return@thread
+                val log = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+
+                val latestVer = Regex("最新版本[：:]\\s*([0-9][0-9.]*)")
+                    .find(log)?.groupValues?.get(1)?.trim()
+                    ?.takeIf { it.isNotEmpty() } ?: return@thread
+                val apkName = Regex("安装包[：:]\\s*(\\S+\\.apk)")
+                    .find(log)?.groupValues?.get(1)?.trim()
+                    ?.takeIf { it.isNotEmpty() } ?: "gnss-link-$latestVer.apk"
+                val notes = extractNotes(log, latestVer)
+
+                // 体积靠 HEAD 取，拿不到就留 0，前端会退化成「立即更新」
+                val apkSize = runCatching {
+                    val head = URL("$BASE_URL/$apkName").openConnection() as HttpURLConnection
+                    head.requestMethod = "HEAD"
+                    head.connectTimeout = 12000
+                    head.readTimeout = 12000
+                    head.setRequestProperty("User-Agent", UPDATER_UA)
+                    head.connect()
+                    val len = head.getHeaderField("Content-Length")?.toLongOrNull() ?: 0L
+                    head.disconnect()
+                    len
+                }.getOrDefault(0L)
 
                 val tag = "v$latestVer"
                 val skipped = updatePrefs.getString("skipped_tag", "") == tag
@@ -394,7 +401,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         .put("notes", notes))
                 }
             } catch (_: Throwable) {
-                // 服务器不可达、超时、目录为空：静默跳过
+                // 服务器不可达、超时、内容格式异常：静默跳过
             }
         }
     }
@@ -407,12 +414,31 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                 val dir = File(cacheDir, "update").apply { mkdirs() }
                 val apk = File(dir, "app-update.apk")
                 if (apk.exists()) apk.delete()
-                ftp().use { client ->
-                    client.connect()
-                    client.download("$FTP_DIR/$name", apk, lastApkSize) { pct ->
-                        runOnUiThread { emit("update-progress", JSONObject().put("value", pct)) }
+                val conn = open("$BASE_URL/$name", 30000)
+                if (conn.responseCode !in 200..299) throw IllegalStateException("HTTP ${conn.responseCode}")
+                val total = conn.getHeaderField("Content-Length")?.toLongOrNull()
+                    ?.takeIf { it > 0 } ?: lastApkSize
+                conn.inputStream.use { input ->
+                    FileOutputStream(apk).use { out ->
+                        val buf = ByteArray(16 * 1024)
+                        var written = 0L
+                        var lastPct = -1
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n <= 0) break
+                            out.write(buf, 0, n)
+                            written += n
+                            if (total > 0) {
+                                val pct = (written * 100 / total).toInt().coerceIn(0, 100)
+                                if (pct != lastPct) {
+                                    lastPct = pct
+                                    runOnUiThread { emit("update-progress", JSONObject().put("value", pct)) }
+                                }
+                            }
+                        }
                     }
                 }
+                conn.disconnect()
                 if (apk.length() < 1024) throw IllegalStateException("安装包不完整")
                 runOnUiThread {
                     lastApkPath = apk.absolutePath
@@ -427,14 +453,16 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
-    /** 更新日志：整段拉 FTP 上的 txt 交给前端渲染 */
+    /** 更新日志：整段拉服务器上的 txt 交给前端渲染 */
     private fun fetchUpdateLog() {
         thread {
             try {
-                val text = ftp().use { client ->
-                    client.connect()
-                    client.readText("$FTP_DIR/$LOG_FILE")
+                val conn = open(LOG_URL)
+                if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                    throw IllegalStateException("HTTP ${conn.responseCode}")
                 }
+                val text = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
                 runOnUiThread {
                     emit("update-log", JSONObject().put("ok", true).put("text", text))
                 }

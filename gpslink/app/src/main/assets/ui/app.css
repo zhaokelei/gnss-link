@@ -402,8 +402,20 @@ p {
 }
 .settings-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
+}
+/* grid 子项默认 min-width:auto，长命令、输入框会把列撑出视口 */
+.settings-grid > * {
+  min-width: 0;
+}
+.card-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+.card-stack > * {
+  min-width: 0;
 }
 label {
   display: block;
@@ -635,7 +647,7 @@ output {
   }
   .workspace,
   .settings-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .connection-panel {
     padding: 20px;

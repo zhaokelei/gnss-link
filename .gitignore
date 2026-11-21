@@ -31,3 +31,6 @@ keystore.properties
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 本地渲染截图
+preview/

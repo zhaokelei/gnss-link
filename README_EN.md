@@ -4,8 +4,6 @@ Phone A acquires GPS → sends to Phone B over LAN UDP → Phone B injects it as
 After that, B opens Amap / Baidu / Google Maps and thinks it is at A's location, ready for navigation.
 Ideal for tablets, head units, dev boards without GPS modules, or any location-related testing.
 
-Redesigned based on the open-source project [wxip/gnsslink](https://github.com/wxip/gnsslink).
-
 ```
 Phone A (has GPS)            Wi-Fi / Hotspot            Phone B (no GPS needed)
 ┌──────────────────┐                                ┌──────────────────┐
@@ -46,11 +44,11 @@ docs/technical-design.md                  Principles, coordinate systems, permis
 README.md
 ```
 
-## Differences from the Reference Project
+## Improvements over the Early Implementation
 
-The reference project `gnsslink` is only 145 lines of Java — the idea is solid, but it's essentially a demo. This version does the following:
+The early implementation was a single Activity in 145 lines of Java — workable, but essentially a demo. This version does the following:
 
-| Issue | Reference | This Project |
+| Issue | Early | This Project |
 |---|---|---|
 | Screen-off / background | Logic in Activity, stops when process frozen | Two foreground services + persistent notification, runs long-term |
 | Pairing | Manually enter B's LAN IP | UDP broadcast auto-discovery, with optional manual IP fallback |
@@ -406,4 +404,3 @@ This project is released under the [Name Attribution License 1.0 (NAL-1.0)](./LI
 
 > Part of this work is based on GNSS Link (https://github.com/zhaokelei/gnss-link) by zhaokelei, used under the NAL-1.0 Name Attribution License.
 
-This project was redesigned based on [wxip/gnsslink](https://github.com/wxip/gnsslink); this license covers only the original work in this project.
