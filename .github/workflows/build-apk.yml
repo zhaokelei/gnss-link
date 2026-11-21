@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -97,3 +97,27 @@ jobs:
           name: gnss-link-universal
           path: gpslink/app/build/outputs/apk/release/gnss-link-universal.apk
           if-no-files-found: error
+
+      # 推送到 main/master 或打 tag 时，自动把 APK 发成 Release，用户可直接下载安装。
+      # PR 不发布，避免 fork 的 PR 拿到写权限。
+      - name: 发布 Release
+        if: github.event_name == 'push'
+        working-directory: ./gpslink
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts | head -1)
+          TAG="v${VERSION}"
+          APKDIR="app/build/outputs/apk/release"
+          echo "版本: $VERSION -> tag: $TAG"
+          if gh release view "$TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "Release $TAG 已存在，覆盖附件"
+            gh release upload "$TAG" "$APKDIR"/*.apk --clobber --repo "${{ github.repository }}"
+          else
+            echo "创建 Release $TAG"
+            gh release create "$TAG" "$APKDIR"/*.apk \
+              --repo "${{ github.repository }}" \
+              --title "GNSS Link $TAG" \
+              --notes "自动构建发布。下载 gnss-link-universal.apk 安装即可，兼容所有安卓设备。" \
+              --latest
+          fi
