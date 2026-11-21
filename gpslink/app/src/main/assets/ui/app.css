@@ -773,7 +773,9 @@ input[type="range"]::-webkit-slider-thumb {
   flex: none;
   position: relative;
   width: 48px;
+  min-width: 48px;
   height: 28px;
+  min-height: 28px;
   padding: 0;
   border: 1px solid var(--separator);
   border-radius: 999px;
