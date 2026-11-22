@@ -192,14 +192,26 @@
               <h2>卫星信号</h2>
               <span id="sat-count">可见 0 · 定位 0</span>
             </div>
-            <div class="sky" id="sky">
-              <span class="north">北</span>
-              <div class="sky-empty">等待卫星数据</div>
+            <div class="segmented sat-modes" id="sat-mode" role="tablist" aria-label="卫星显示方式">
+              <button data-value="sky" aria-selected="true" aria-pressed="true">圆盘方位</button>
+              <button data-value="list" aria-selected="false" aria-pressed="false">列表明细</button>
+            </div>
+            <div id="sat-view-sky">
+              <div class="sky" id="sky">
+                <span class="north">北</span>
+                <div class="sky-empty">等待卫星数据</div>
+              </div>
+              <div id="sat-bars" class="sat-bars"></div>
+            </div>
+            <div id="sat-view-list" hidden>
+              <div class="sat-table-head">
+                <span>卫星</span><span>频段</span><span>信号</span><span>方位</span>
+              </div>
+              <div class="sat-table" id="sat-table"></div>
             </div>
             <p class="muted" id="sat-hint">
               开启系统定位，到室外或窗边接收信号。
             </p>
-            <div id="sat-bars" class="sat-bars"></div>
           </article>
           <article class="surface">
             <div class="section-head">
@@ -333,6 +345,28 @@
             </article>
             <article class="surface">
               <div class="section-head">
+                <h2>界面显示</h2>
+              </div>
+              <p class="field-note">
+                车机常把界面锁成竖屏，若横屏车机显示不满，可在这里强制横屏。
+              </p>
+              <div
+                class="segmented"
+                id="orientation"
+                role="group"
+                aria-label="屏幕方向"
+              >
+                <button data-value="auto" aria-selected="true" aria-pressed="true">
+                  跟随系统</button
+                ><button data-value="landscape" aria-selected="false" aria-pressed="false">
+                  强制横屏</button
+                ><button data-value="portrait" aria-selected="false" aria-pressed="false">
+                  强制竖屏
+                </button>
+              </div>
+            </article>
+            <article class="surface">
+              <div class="section-head">
                 <h2>自动运行</h2>
               </div>
               <div class="switch-row">
@@ -434,7 +468,7 @@
                 <b class="about-name">GNSS Link</b>
                 <p class="field-note">把本机定位共享到平板或车机</p>
                 <span class="about-version"
-                  >版本 <b id="about-version">1.2.3</b></span
+                  >版本 <b id="about-version">1.2.4</b></span
                 >
               </div>
             </div>
@@ -479,7 +513,7 @@
               <button class="lg-btn" id="check-update">检查更新</button>
             </div>
             <p class="field-note" id="update-state">
-              当前版本 1.2.3，点右侧按钮可立即检查。
+              当前版本 1.2.4，点右侧按钮可立即检查。
             </p>
             <div class="button-row">
               <button class="lg-btn" id="open-log">更新日志</button>

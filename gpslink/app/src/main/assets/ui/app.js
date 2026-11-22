@@ -306,19 +306,36 @@ function renderSatellites(payload) {
     .forEach((n) => n.remove());
   $("sky").querySelector(".sky-empty").hidden = items.length > 0;
   $("sat-hint").textContent = items.length
-    ? "蓝色为参与定位的卫星，信号强度单位为 dB-Hz。"
+    ? satMode === "list"
+      ? "蓝色为参与定位的卫星，信号强度单位为 dB-Hz。"
+      : "蓝色为参与定位的卫星，圆盘按方位角与高度角摆放。"
     : "开启系统定位，到室外或窗边接收信号。";
   $("sat-bars").replaceChildren();
+  const table = $("sat-table");
+  table.replaceChildren();
+
   for (const sat of items) {
+    const band = sat.band && sat.band !== "—" ? sat.band : "";
     const angle = (sat.azimuth * Math.PI) / 180,
       radius = ((90 - sat.elevation) / 90) * 44;
+
+    // 圆盘点：编号 + 频段
     const dot = document.createElement("span");
     dot.className = `sky-dot${sat.used ? " used" : ""}`;
-    dot.textContent = sat.svid;
+    const svidText = document.createElement("b");
+    svidText.textContent = sat.svid;
+    dot.append(svidText);
+    if (band) {
+      const bandText = document.createElement("i");
+      bandText.textContent = band;
+      dot.append(bandText);
+    }
     dot.style.left = `${50 + Math.sin(angle) * radius}%`;
     dot.style.top = `${50 - Math.cos(angle) * radius}%`;
-    dot.title = `${sat.name} ${sat.svid} · ${number(sat.cn0)} dB-Hz`;
+    dot.title = `${sat.name} ${sat.svid}${band ? ` · ${band}` : ""} · ${number(sat.cn0)} dB-Hz`;
     $("sky").append(dot);
+
+    // 柱状图：编号 + 频段
     const bar = document.createElement("div");
     bar.className = `sat-bar${sat.used ? " used" : ""}`;
     const strength = document.createElement("span");
@@ -334,11 +351,52 @@ function renderSatellites(payload) {
     const identifier = document.createElement("span");
     identifier.textContent = sat.svid;
     label.append(flag, identifier);
-    bar.title = `${sat.name} ${sat.svid} · ${number(sat.cn0)} dB-Hz`;
+    if (band) {
+      const bandTag = document.createElement("span");
+      bandTag.className = "sat-band-tag";
+      bandTag.textContent = band;
+      label.append(bandTag);
+    }
+    bar.title = `${sat.name} ${sat.svid}${band ? ` · ${band}` : ""} · ${number(sat.cn0)} dB-Hz`;
     bar.setAttribute("role", "img");
-    bar.setAttribute("aria-label", `${sat.name}卫星 ${sat.svid}，信号强度 ${number(sat.cn0)} dB-Hz${sat.used ? "，参与定位" : ""}`);
+    bar.setAttribute(
+      "aria-label",
+      `${sat.name}卫星 ${sat.svid}${band ? `，频段 ${band}` : ""}，信号强度 ${number(sat.cn0)} dB-Hz${sat.used ? "，参与定位" : ""}`,
+    );
     bar.append(strength, column, label);
     $("sat-bars").append(bar);
+
+    // 列表行
+    const row = document.createElement("div");
+    row.className = `sat-row${sat.used ? " used" : ""}`;
+    const cellId = document.createElement("span");
+    cellId.className = "sat-cell-id";
+    const rowFlag = document.createElement("span");
+    rowFlag.className = "sat-flag";
+    rowFlag.textContent = satelliteFlags[sat.name] || "🛰️";
+    rowFlag.setAttribute("aria-hidden", "true");
+    const rowId = document.createElement("b");
+    rowId.textContent = sat.svid;
+    cellId.append(rowFlag, rowId);
+
+    const cellBand = document.createElement("span");
+    cellBand.className = "sat-cell-band";
+    cellBand.textContent = band || "—";
+
+    const cellCn0 = document.createElement("span");
+    cellCn0.className = "sat-cell-cn0";
+    const meter = document.createElement("i");
+    meter.style.width = `${Math.min(100, (sat.cn0 / 50) * 100)}%`;
+    const cn0Text = document.createElement("em");
+    cn0Text.textContent = number(sat.cn0, 0);
+    cellCn0.append(meter, cn0Text);
+
+    const cellPos = document.createElement("span");
+    cellPos.className = "sat-cell-pos";
+    cellPos.textContent = `${Math.round(sat.elevation)}° / ${Math.round(sat.azimuth)}°`;
+
+    row.append(cellId, cellBand, cellCn0, cellPos);
+    table.append(row);
   }
 }
 window.GnssUI = {
@@ -353,6 +411,7 @@ window.GnssUI = {
       setSwitch("track-toggle", data.trackEnabled);
       setSwitch("nmea", data.nmeaEnabled);
       if (data.nmeaPort) $("nmea-port").value = data.nmeaPort;
+      if (data.orientation) select("orientation", data.orientation);
       $("autostart-hint").textContent = data.autoStart
         ? "下次开机将按上次使用的角色自动运行。"
         : "";
@@ -412,6 +471,29 @@ window.GnssUI = {
     }
   },
 };
+/* ==================== 卫星显示模式 ==================== */
+let satMode = "sky";
+function applySatMode(mode) {
+  satMode = mode;
+  select("sat-mode", mode);
+  const isList = mode === "list";
+  $("sat-view-sky").hidden = isList;
+  $("sat-view-list").hidden = !isList;
+  localStorage.setItem("satMode", mode);
+}
+$("sat-mode").addEventListener("click", (event) => {
+  const btn = event.target.closest("button[data-value]");
+  if (btn) applySatMode(btn.dataset.value);
+});
+applySatMode(localStorage.getItem("satMode") === "list" ? "list" : "sky");
+
+$("orientation").addEventListener("click", (event) => {
+  const btn = event.target.closest("button[data-value]");
+  if (!btn) return;
+  select("orientation", btn.dataset.value);
+  native("orientation", { value: btn.dataset.value });
+});
+
 /* ==================== 更新与更新日志 ==================== */
 let pendingTag = "";
 

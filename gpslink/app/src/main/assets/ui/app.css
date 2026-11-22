@@ -1120,3 +1120,232 @@ html.modal-open,
 html.modal-open body {
   overflow: hidden;
 }
+
+/* ==================== 卫星：显示模式切换 ==================== */
+.sat-modes {
+  margin: 16px 0 6px;
+}
+.sat-modes button {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+/* 圆盘上的卫星点：编号 + 频段 */
+.sky-dot {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1;
+}
+.sky-dot b {
+  font-size: 10px;
+  font-weight: 600;
+}
+.sky-dot i {
+  font-style: normal;
+  font-size: 8px;
+  opacity: 0.85;
+}
+
+/* 柱状图标签里的频段小字 */
+.sat-band-tag {
+  font-size: 9px;
+  color: var(--tint-strong);
+  font-weight: 600;
+}
+.sat-bar.used .sat-band-tag {
+  color: #fff;
+  opacity: 0.9;
+}
+
+/* ==================== 卫星：列表明细 ==================== */
+.sat-table-head,
+.sat-row {
+  display: grid;
+  grid-template-columns: 1.1fr 0.7fr 1.3fr 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.sat-table-head {
+  margin-top: 16px;
+  padding: 0 10px 8px;
+  font-size: 11px;
+  color: var(--label-2);
+  border-bottom: 1px solid var(--separator);
+}
+.sat-table {
+  max-height: 340px;
+  overflow-y: auto;
+}
+.sat-row {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--label);
+  border-bottom: 1px solid var(--separator);
+}
+.sat-row:last-child {
+  border-bottom: 0;
+}
+.sat-row.used {
+  background: color-mix(in srgb, var(--tint) 8%, transparent);
+  border-radius: 12px;
+}
+.sat-cell-id {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sat-cell-band {
+  font-weight: 600;
+  color: var(--tint-strong);
+  font-variant-numeric: tabular-nums;
+}
+.sat-cell-cn0 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  /* 轨道底：让信号条有个参照线 */
+  background: linear-gradient(var(--surface-2), var(--surface-2)) left center / 100% 6px no-repeat;
+  border-radius: 99px;
+}
+.sat-cell-cn0 i {
+  display: block;
+  height: 6px;
+  min-width: 2px;
+  border-radius: 99px;
+  background: var(--tint);
+  opacity: 0.9;
+}
+.sat-row:not(.used) .sat-cell-cn0 i {
+  background: var(--label-2);
+  opacity: 0.55;
+}
+.sat-cell-cn0 em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+.sat-cell-pos {
+  font-size: 12px;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==================== 横屏车机适配 ==================== */
+@media (orientation: landscape) and (min-width: 720px) {
+  .page-shell {
+    max-width: 1280px;
+    padding: 12px 24px 96px;
+  }
+  .top-toolbar {
+    margin-bottom: 16px;
+  }
+  .page-heading {
+    margin-bottom: 16px;
+  }
+  .surface {
+    padding: 18px;
+    border-radius: 22px;
+  }
+  .sky {
+    width: min(300px, 58%);
+    margin: 18px auto;
+  }
+  /* 横屏高度紧张：圆盘与柱状图并排，避免柱状图被底栏压住 */
+  #sat-view-sky {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 20px;
+    align-items: end;
+  }
+  #sat-view-sky .sky {
+    width: min(230px, 100%);
+    margin: 30px auto 0;
+  }
+  #sat-view-sky .sat-bars {
+    min-height: 120px;
+    padding: 4px 0 0;
+  }
+  /* 柱高由脚本内联给出，横屏用 max-height 压住，保证标签与提示不被底栏吞掉 */
+  #sat-view-sky .sat-bar i {
+    max-height: 104px;
+  }
+  .brand {
+    font-size: 15px;
+  }
+  /* 横屏纵向空间有限：压缩标题区与卡片内边距，让主要信息一屏内可见 */
+  .page-heading p {
+    display: none;
+  }
+  .page-heading h1,
+  h1 {
+    font-size: 22px;
+  }
+  .surface {
+    padding: 14px 18px;
+  }
+  .sat-modes {
+    margin: 8px 0 0;
+  }
+  .top-toolbar {
+    margin-bottom: 8px;
+  }
+  .sat-table {
+    max-height: 260px;
+  }
+  /* 车机多为远距离触控，横屏下统一放大字号与点击区域 */
+  h1 {
+    font-size: 28px;
+  }
+  h2 {
+    font-size: 17px;
+  }
+  .field-note,
+  .muted {
+    font-size: 14px;
+  }
+  .lg-btn {
+    min-height: 52px;
+    font-size: 14px;
+  }
+  .segmented button,
+  .sat-modes button {
+    min-height: 48px;
+    font-size: 14px;
+  }
+  input:not([type="range"]) {
+    min-height: 48px;
+  }
+  .dock-tab {
+    min-height: 56px;
+    font-size: 12px;
+  }
+  /* 横屏高度不足，把提示语让位给数据本身 */
+  #sat-hint {
+    display: none;
+  }
+  /* 压缩连接页场景图，让「开始共享」留在首屏 */
+  .link-scene {
+    height: 100px;
+  }
+  .connection-panel h2 {
+    font-size: 18px;
+  }
+  .connection-panel {
+    padding: 16px 18px;
+  }
+  /* 横屏优先保证主按钮可见，引导文案让位 */
+  #action-hint {
+    display: none;
+  }
+  .sat-row {
+    padding: 12px 10px;
+    font-size: 14px;
+  }
+}

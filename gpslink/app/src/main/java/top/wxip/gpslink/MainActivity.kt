@@ -8,6 +8,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
@@ -63,8 +64,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private var lastApkPath = ""
     private val updatePrefs by lazy { getSharedPreferences("update", Context.MODE_PRIVATE) }
     private val currentVersion: String by lazy {
-        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.3" }
-        catch (_: Throwable) { "1.2.3" }
+        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.4" }
+        catch (_: Throwable) { "1.2.4" }
     }
     private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (hasLocationPermission()) {
@@ -84,12 +85,16 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         btMac = Prefs.loadBtMac(this)
         web = WebView(this)
         setContentView(web)
+        applyOrientation(Prefs.loadOrientation(this))
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.setSupportZoom(false)
         web.settings.builtInZoomControls = false
         web.settings.displayZoomControls = false
         web.settings.textZoom = 100
+        // 尊重 viewport meta 的 device-width，横屏车机上按实际宽度排版而不是固定 980px
+        web.settings.useWideViewPort = true
+        web.settings.loadWithOverviewMode = true
         web.settings.allowFileAccess = false
         web.settings.allowContentAccess = false
         web.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
@@ -161,6 +166,12 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         "track-play" -> playTrack(data.optString("path"))
                         "track-delete" -> deleteTrack(data.optString("path"))
                         "nmea" -> configureNmea(data.optBoolean("enabled"), data.optInt("port"))
+                        "orientation" -> {
+                            val value = data.optString("value", "auto")
+                            Prefs.saveOrientation(this@MainActivity, value)
+                            applyOrientation(value)
+                            publishConfig()
+                        }
                         // 自更新桥接
                         "check-update" -> checkUpdate()
                         "download-update" -> downloadUpdate()
@@ -188,6 +199,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("trackEnabled", Prefs.loadTrackEnabled(this))
             .put("nmeaEnabled", Prefs.loadNmeaEnabled(this))
             .put("nmeaPort", Prefs.loadNmeaPort(this))
+            .put("orientation", Prefs.loadOrientation(this))
             .put("package", packageName)
             .put("version", currentVersion)
             .put("dark", resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
@@ -309,7 +321,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     companion object {
         private const val BASE_URL = "https://gps.iqiq.cn/download"
         private const val LOG_URL = "$BASE_URL/update-log.txt"
-        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.3"
+        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.4"
     }
 
     private fun open(url: String, readTimeout: Int = 20000): HttpURLConnection =
@@ -531,6 +543,22 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         window.decorView.systemUiVisibility = if (dark) 0 else android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
     }
 
+    /** 应用屏幕方向偏好：车机系统常把界面锁成竖屏，这里给用户一个主动覆盖的入口 */
+    private fun applyOrientation(value: String) {
+        requestedOrientation = when (value) {
+            "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            "portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    /** 横竖屏切换不重建 Activity，但要主动让 WebView 按新尺寸重排，媒体查询才会生效 */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        web.requestLayout()
+        emit("motion", reducedMotion())
+    }
+
     override fun onResume() {
         super.onResume()
         resumed = true
@@ -617,7 +645,9 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         items.forEach { sat ->
             array.put(JSONObject().put("svid", sat.svid).put("name", Gnss.short(sat.constellation))
                 .put("cn0", sat.cn0.toDouble()).put("elevation", sat.elevation.toDouble())
-                .put("azimuth", sat.azimuth.toDouble()).put("used", sat.usedInFix))
+                .put("azimuth", sat.azimuth.toDouble()).put("used", sat.usedInFix)
+                .put("band", Gnss.band(sat.freqHz))
+                .put("freq", (sat.freqHz / 1e6).toDouble()))
         }
         emit("satellites", JSONObject().put("items", array).put("source", if (receiver) {
             if (fresh) "来自 $remoteFrom" else "等待发送端卫星数据"

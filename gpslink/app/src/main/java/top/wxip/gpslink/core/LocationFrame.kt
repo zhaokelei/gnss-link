@@ -83,6 +83,37 @@ data class LocationFrame(
                 putFloat("maxCn0", stats.maxCn0)
             }
         }
+
+        // setTestProviderLocation 在系统侧会调 makeComplete()，对没打标记的字段
+        // 一律补成 0 并标记为「有效」。速度/航向因此会被清零，导航软件就认为车没动。
+        // 显式置一遍 has* 标记，让系统原样保留我们注入的值。
+        markValid()
+    }
+
+    /** 反射设置 Location 的 has* 标记；隐藏 API，失败时保持原样不影响主流程 */
+    private fun Location.markValid() {
+        // 我们给这些字段都赋了明确值，所以统一标记为有效
+        val always = listOf("setHasSpeed", "setHasBearing", "setHasAccuracy", "setHasAltitude")
+        val conditional = listOf(
+            "setHasVerticalAccuracy" to verticalAccuracyMeters,
+            "setHasSpeedAccuracy" to speedAccuracyMetersPerSecond,
+            "setHasBearingAccuracy" to bearingAccuracyDegrees,
+        )
+        val type = Boolean::class.javaPrimitiveType ?: return
+        for (name in always) {
+            try {
+                Location::class.java.getMethod(name, type).invoke(this, true)
+            } catch (_: Throwable) {
+                // 命中隐藏 API 限制时忽略，行为退回系统默认
+            }
+        }
+        for ((name, value) in conditional) {
+            try {
+                Location::class.java.getMethod(name, type).invoke(this, value > 0f)
+            } catch (_: Throwable) {
+                // 同上
+            }
+        }
     }
 
     companion object {
