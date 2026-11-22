@@ -1395,3 +1395,138 @@ body::after {
     var(--ground) 62%
   );
 }
+
+/* ==================== 大屏车机字号与控件放大 ====================
+   布局单位是固定 px，屏幕越宽（1080p/4K）元素相对越小。这里按断点逐级放大，
+   不用 zoom —— zoom 会让 fixed 底栏按缩放后的视口定位，直接跑偏。
+   断点取 CSS 视口宽度（1080p@240dpi≈1280，4K@320dpi≈1920）。 */
+@media (orientation: landscape) and (min-width: 1200px) {
+  .page-shell {
+    max-width: 1180px;
+    padding: 16px 28px 104px;
+  }
+  .page-heading h1,
+  h1 {
+    font-size: 26px;
+  }
+  h2 {
+    font-size: 17px;
+  }
+  .field-note,
+  .muted,
+  p {
+    font-size: 13.5px;
+  }
+  .surface,
+  .connection-panel {
+    padding: 24px;
+  }
+  .lg-btn {
+    min-height: 52px;
+    font-size: 14px;
+  }
+  .segmented button,
+  .sat-modes button {
+    min-height: 50px;
+    font-size: 14px;
+  }
+  input:not([type="range"]) {
+    min-height: 50px;
+    font-size: 15px;
+  }
+  .coordinates {
+    font-size: 30px;
+  }
+  .metrics strong,
+  #accuracy,
+  #speed,
+  #altitude,
+  #bearing {
+    font-size: 19px;
+  }
+  .link-scene {
+    height: 190px;
+  }
+  .sky {
+    width: min(320px, 54%);
+  }
+  .dock-tab {
+    min-height: 58px;
+    font-size: 12px;
+  }
+}
+@media (orientation: landscape) and (min-width: 1700px) {
+  .page-shell {
+    max-width: 1560px;
+    padding: 20px 40px 120px;
+  }
+  .page-heading h1,
+  h1 {
+    font-size: 32px;
+  }
+  h2 {
+    font-size: 20px;
+  }
+  .field-note,
+  .muted,
+  p {
+    font-size: 15px;
+  }
+  .surface,
+  .connection-panel {
+    padding: 30px;
+  }
+  .lg-btn {
+    min-height: 58px;
+    font-size: 16px;
+  }
+  .segmented button,
+  .sat-modes button {
+    min-height: 56px;
+    font-size: 16px;
+  }
+  input:not([type="range"]) {
+    min-height: 56px;
+    font-size: 17px;
+  }
+  .coordinates {
+    font-size: 38px;
+  }
+  .metrics strong,
+  #accuracy,
+  #speed,
+  #altitude,
+  #bearing {
+    font-size: 23px;
+  }
+  .link-scene {
+    height: 240px;
+  }
+  .sky {
+    width: min(380px, 52%);
+  }
+  .sat-row {
+    font-size: 15px;
+    padding: 14px 12px;
+  }
+  .dock-tab {
+    min-height: 62px;
+    font-size: 13px;
+  }
+}
+
+/* ==================== 底栏随视口自适应 ====================
+   固定 370px 在 1080p/4K 车机上显得很小，在窄屏上又会顶满两侧。
+   这里用 vw/vh + clamp 让它跟着屏幕走，竖屏紧凑、横屏舒展。 */
+.bottom-dock {
+  max-width: clamp(360px, 30vw, 620px);
+}
+.dock-tab {
+  min-height: clamp(52px, 5.4vh, 66px);
+  font-size: clamp(11px, 1.2vh, 14px);
+  gap: clamp(3px, 0.5vh, 8px);
+}
+.dock-tab svg {
+  width: clamp(20px, 2.4vh, 28px);
+  height: clamp(20px, 2.4vh, 28px);
+}

@@ -124,6 +124,8 @@ jobs:
 
   # 在真实 Android 模拟器里安装并截图，用来验证多分辨率与横竖屏排版。
   screenshot:
+    # 只在手动触发时执行，push 不再等待模拟器截图
+    if: github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 40
