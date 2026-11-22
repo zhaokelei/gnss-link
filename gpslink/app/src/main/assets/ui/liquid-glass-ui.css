@@ -81,7 +81,8 @@
   border-radius: inherit;
   pointer-events: none;
   z-index: 0;
-  background: color-mix(in srgb, var(--surface) calc(var(--glass-tint) * 56%), transparent);
+  /* 底栏常年压在滚动内容上，透得太狠会让文字透过图标，这里提高底色实度 */
+  background: color-mix(in srgb, var(--surface) calc(46% + var(--glass-tint) * 0.5%), transparent);
   -webkit-backdrop-filter: blur(calc(var(--glass-tint) * 2px));
   backdrop-filter: blur(calc(var(--glass-tint) * 2px));
   box-shadow: inset 0 1px 0 var(--glass-rim-2), inset 0 0 0 1px var(--dock-outline), 0 6px 18px #101c3220;
@@ -129,9 +130,11 @@
 
 .dock-tray {
   inset: 0;
-  background: color-mix(in srgb, var(--surface) calc(var(--glass-tint) * 56%), transparent);
-  -webkit-backdrop-filter: blur(calc(var(--glass-tint) * 2px));
-  backdrop-filter: blur(calc(var(--glass-tint) * 2px));
+  /* 底栏长期压在滚动内容上：底色给足，模糊也要够。
+     原先 blur 写成 calc(tint * 2px)，tint 是 0~1 小数，实际只有 0.7px，等于没模糊。 */
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(16px) saturate(1.25);
   box-shadow: inset 0 1px 0 var(--glass-rim-2), inset 0 0 0 1px var(--dock-outline), 0 6px 18px #101c3220;
 }
 

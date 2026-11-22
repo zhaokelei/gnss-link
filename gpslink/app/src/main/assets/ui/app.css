@@ -576,9 +576,21 @@ output {
   height: 20px;
   white-space: nowrap;
 }
+/* 国旗用内联 SVG，尺寸固定，不依赖系统 Emoji 字体 */
 .sat-flag {
-  font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
-  font-size: 17px;
+  display: block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 12px;
+  border-radius: 2px;
+  overflow: hidden;
+  /* 浅色背景上给个极淡描边，暗色旗（美国）也能看出边界 */
+  box-shadow: 0 0 0 1px rgba(26, 46, 78, 0.14);
+}
+/* 列表模式下国旗占固定槽位，保证各行编号左对齐 */
+.sat-cell-id .sat-flag {
+  flex: 0 0 20px;
+  width: 20px;
 }
 .sat-bar i {
   display: block;
@@ -683,6 +695,15 @@ output {
   }
   .scene-caption {
     margin-bottom: 20px;
+  }
+  /* 竖屏高度有限：圆盘与柱状图收一档，保证柱状图底标不被底栏压住 */
+  .sky {
+    width: min(238px, 78%);
+    margin: 20px auto;
+  }
+  .sat-bars {
+    min-height: 86px;
+    padding: 12px 0 2px;
   }
 }
 @media (min-width: 701px) {
@@ -1208,20 +1229,25 @@ html.modal-open body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
-  /* 轨道底：让信号条有个参照线 */
-  background: linear-gradient(var(--surface-2), var(--surface-2)) left center / 100% 6px no-repeat;
-  border-radius: 99px;
+  gap: 8px;
 }
-.sat-cell-cn0 i {
+/* 轨道只占第一列，避免底色延伸到数字下方造成"压字" */
+.cn0-track {
   display: block;
   height: 6px;
-  min-width: 2px;
   border-radius: 99px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.cn0-track i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
   background: var(--tint);
   opacity: 0.9;
 }
-.sat-row:not(.used) .sat-cell-cn0 i {
+.sat-row:not(.used) .cn0-track i {
   background: var(--label-2);
   opacity: 0.55;
 }
@@ -1348,4 +1374,24 @@ html.modal-open body {
     padding: 12px 10px;
     font-size: 14px;
   }
+}
+
+/* ==================== 底部渐隐 ====================
+   底栏是固定悬浮的半透明玻璃，滚动内容会在它下方透出来，
+   首屏看像文字和图标叠在一起。这里让内容进入底栏区域前先淡出到页面底色。 */
+body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100px;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    color-mix(in srgb, var(--ground) 70%, transparent) 34%,
+    var(--ground) 62%
+  );
 }

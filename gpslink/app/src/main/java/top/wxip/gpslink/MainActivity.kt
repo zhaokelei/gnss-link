@@ -64,8 +64,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private var lastApkPath = ""
     private val updatePrefs by lazy { getSharedPreferences("update", Context.MODE_PRIVATE) }
     private val currentVersion: String by lazy {
-        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.4" }
-        catch (_: Throwable) { "1.2.4" }
+        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.5" }
+        catch (_: Throwable) { "1.2.5" }
     }
     private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (hasLocationPermission()) {
@@ -321,7 +321,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     companion object {
         private const val BASE_URL = "https://gps.iqiq.cn/download"
         private const val LOG_URL = "$BASE_URL/update-log.txt"
-        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.4"
+        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.5"
     }
 
     private fun open(url: String, readTimeout: Int = 20000): HttpURLConnection =

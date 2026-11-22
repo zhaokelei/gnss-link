@@ -292,10 +292,21 @@ function renderStatus(s) {
       : "开始共享后显示连接地址";
 }
 // SBAS augments multiple satellite systems and has no single national flag.
+// 用内联 SVG 画国旗：Emoji 在部分车机与 Windows 上会退化成 US/CN 这样的字母
 const satelliteFlags = {
-  北斗: "🇨🇳", GPS: "🇺🇸", GLO: "🇷🇺", GAL: "🇪🇺",
-  QZS: "🇯🇵", IRN: "🇮🇳", SBS: "🌐",
+  北斗: "flag-cn", GPS: "flag-us", GLO: "flag-ru", GAL: "flag-eu",
+  QZS: "flag-jp", IRN: "flag-in", SBS: "flag-globe",
 };
+function flagIcon(name) {
+  const SVGN = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(SVGN, "svg");
+  svg.setAttribute("class", "sat-flag");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS(SVGN, "use");
+  use.setAttribute("href", `#${satelliteFlags[name] || "flag-globe"}`);
+  svg.append(use);
+  return svg;
+}
 function renderSatellites(payload) {
   const { items, source } = payload;
   $("sat-source").textContent = source;
@@ -344,10 +355,7 @@ function renderSatellites(payload) {
     column.style.height = `${Math.max(2, Math.min(60, sat.cn0)) * 3}px`;
     const label = document.createElement("span");
     label.className = "sat-label";
-    const flag = document.createElement("span");
-    flag.className = "sat-flag";
-    flag.textContent = satelliteFlags[sat.name] || "🛰️";
-    flag.setAttribute("aria-hidden", "true");
+    const flag = flagIcon(sat.name);
     const identifier = document.createElement("span");
     identifier.textContent = sat.svid;
     label.append(flag, identifier);
@@ -371,10 +379,7 @@ function renderSatellites(payload) {
     row.className = `sat-row${sat.used ? " used" : ""}`;
     const cellId = document.createElement("span");
     cellId.className = "sat-cell-id";
-    const rowFlag = document.createElement("span");
-    rowFlag.className = "sat-flag";
-    rowFlag.textContent = satelliteFlags[sat.name] || "🛰️";
-    rowFlag.setAttribute("aria-hidden", "true");
+    const rowFlag = flagIcon(sat.name);
     const rowId = document.createElement("b");
     rowId.textContent = sat.svid;
     cellId.append(rowFlag, rowId);
@@ -385,11 +390,14 @@ function renderSatellites(payload) {
 
     const cellCn0 = document.createElement("span");
     cellCn0.className = "sat-cell-cn0";
+    const track = document.createElement("span");
+    track.className = "cn0-track";
     const meter = document.createElement("i");
     meter.style.width = `${Math.min(100, (sat.cn0 / 50) * 100)}%`;
+    track.append(meter);
     const cn0Text = document.createElement("em");
     cn0Text.textContent = number(sat.cn0, 0);
-    cellCn0.append(meter, cn0Text);
+    cellCn0.append(track, cn0Text);
 
     const cellPos = document.createElement("span");
     cellPos.className = "sat-cell-pos";

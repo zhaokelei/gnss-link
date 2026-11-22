@@ -121,3 +121,48 @@ jobs:
               --notes "自动构建发布。下载 gnss-link-universal.apk 安装即可，兼容所有安卓设备。" \
               --latest
           fi
+
+  # 在真实 Android 模拟器里安装并截图，用来验证多分辨率与横竖屏排版。
+  screenshot:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      - name: 下载通用 APK
+        uses: actions/download-artifact@v4
+        with:
+          name: gnss-link-universal
+          path: apk
+
+      - name: 开启 KVM 加速
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: 模拟器内运行并截图
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          APK_PATH: apk/gnss-link-universal.apk
+          OUT_DIR: screenshots
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/screenshots.sh
+
+      - name: 上传截图
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: screenshots
+          if-no-files-found: error
+
