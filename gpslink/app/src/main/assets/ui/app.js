@@ -321,6 +321,7 @@ function renderSatellites(payload) {
       ? "蓝色为参与定位的卫星，信号强度单位为 dB-Hz。"
       : "蓝色为参与定位的卫星，圆盘按方位角与高度角摆放。"
     : "开启系统定位，到室外或窗边接收信号。";
+  $("sat-bars").replaceChildren();
   const table = $("sat-table");
   table.replaceChildren();
 
@@ -344,6 +345,34 @@ function renderSatellites(payload) {
     dot.style.top = `${50 - Math.cos(angle) * radius}%`;
     dot.title = `${sat.name} ${sat.svid}${band ? ` · ${band}` : ""} · ${number(sat.cn0)} dB-Hz`;
     $("sky").append(dot);
+
+    // 柱状图：编号 + 频段
+    const bar = document.createElement("div");
+    bar.className = `sat-bar${sat.used ? " used" : ""}`;
+    const strength = document.createElement("span");
+    strength.textContent = number(sat.cn0, 0);
+    const column = document.createElement("i");
+    column.style.height = `${Math.max(4, Math.min(50, sat.cn0) * 0.8)}px`;
+    const label = document.createElement("span");
+    label.className = "sat-label";
+    const flag = flagIcon(sat.name);
+    const identifier = document.createElement("span");
+    identifier.textContent = sat.svid;
+    label.append(flag, identifier);
+    if (band) {
+      const bandTag = document.createElement("span");
+      bandTag.className = "sat-band-tag";
+      bandTag.textContent = band;
+      label.append(bandTag);
+    }
+    bar.title = `${sat.name} ${sat.svid}${band ? ` · ${band}` : ""} · ${number(sat.cn0)} dB-Hz`;
+    bar.setAttribute("role", "img");
+    bar.setAttribute(
+      "aria-label",
+      `${sat.name}卫星 ${sat.svid}${band ? `，频段 ${band}` : ""}，信号强度 ${number(sat.cn0)} dB-Hz${sat.used ? "，参与定位" : ""}`,
+    );
+    bar.append(strength, column, label);
+    $("sat-bars").append(bar);
 
 
     // 列表行

@@ -538,6 +538,45 @@ output {
   background: var(--tint);
   color: white;
 }
+.sat-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 0;
+  padding: 8px 0 2px;
+  margin-bottom: 10px;
+}
+.sat-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 28px;
+  min-width: 28px;
+  flex: 0 0 28px;
+  text-align: center;
+  font-size: 9px;
+  color: var(--label-2);
+}
+.sat-bar > span {
+  display: block;
+  height: 15px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+.sat-bar > .sat-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 42px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.sat-label > span {
+  display: block;
+  height: 20px;
+  white-space: nowrap;
+}
 /* 国旗用内联 SVG，尺寸固定，不依赖系统 Emoji 字体 */
 .sat-flag {
   display: block;
@@ -553,6 +592,17 @@ output {
 .sat-cell-id .sat-flag {
   flex: 0 0 26px;
   width: 26px;
+}
+.sat-bar i {
+  display: block;
+  width: 18px;
+  flex-shrink: 0;
+  background: #7492b366;
+  border-radius: 5px 5px 0 0;
+  margin: 5px 0;
+}
+.sat-bar.used i {
+  background: var(--tint);
 }
 #page-satellites > .surface {
   margin-bottom: 20px;
@@ -651,6 +701,9 @@ output {
   .sky {
     width: min(238px, 78%);
     margin: 20px auto;
+  }
+  .sat-bars {
+    padding: 8px 0 2px;
   }
 }
 @media (min-width: 701px) {
@@ -1121,6 +1174,23 @@ html.modal-open body {
 }
 
 
+/* 柱状图里的国旗比列表里小一号，保证 11 个能排一行 */
+.sat-label .sat-flag {
+  width: 22px;
+  flex: 0 0 22px;
+}
+
+/* 柱状图标签里的频段小字 */
+.sat-band-tag {
+  font-size: 8.5px;
+  color: var(--tint-strong);
+  font-weight: 600;
+}
+.sat-bar.used .sat-band-tag {
+  color: #fff;
+  opacity: 0.9;
+}
+
 /* ==================== 卫星：列表明细 ==================== */
 .sat-table-head,
 .sat-row {
@@ -1250,6 +1320,13 @@ html.modal-open body {
   #sat-view-sky .sky {
     width: min(230px, 100%);
     margin: 30px auto 0;
+  }
+  #sat-view-sky .sat-bars {
+    padding: 4px 0 0;
+  }
+  /* 柱高由脚本内联给出，横屏用 max-height 压住，保证标签与提示不被底栏吞掉 */
+  #sat-view-sky .sat-bar i {
+    max-height: 104px;
   }
   .brand {
     font-size: 15px;
