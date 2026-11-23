@@ -153,18 +153,17 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
-    /** 6 参构造是 API 21；低版本退回 3 参（拿不到状态码，语义上等价于 200/空体） */
+    /** 只用 3 参构造：它在 API 1 就有。
+     *  6 参构造是 API 21 才加的，即使写在 SDK_INT 判断里，Dalvik 校验阶段也会因为
+     *  「引用了不存在的方法」把整个方法标记为不可用（日志里的
+     *  `Could not find method android.webkit.WebResourceResponse.<init>`），
+     *  结果是 4.4 上连页面都加载不出来。本地 assets 不需要状态码，直接给 200 语义。 */
     private fun buildResponse(
         mime: String,
         code: Int,
         reason: String,
         data: java.io.InputStream
-    ): WebResourceResponse =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            WebResourceResponse(mime, "UTF-8", code, reason, emptyMap(), data)
-        } else {
-            WebResourceResponse(mime, "UTF-8", data)
-        }
+    ): WebResourceResponse = WebResourceResponse(mime, "UTF-8", data)
 
     /**
      * 按 WebView 内核版本选择界面。

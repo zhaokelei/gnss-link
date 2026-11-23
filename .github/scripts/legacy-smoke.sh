@@ -12,6 +12,22 @@ pass=0
 fail=0
 note() { echo "[$API] $*"; }
 
+
+# API 20 以下没有 adb exec-out，退回 screencap + pull
+shot() {
+  local out="$1"
+  if [ "$API" -ge 20 ]; then
+    adb exec-out screencap -p > "$out"
+  else
+    adb shell screencap -p /sdcard/_shot.png >/dev/null 2>&1
+    adb pull /sdcard/_shot.png "$out" >/dev/null 2>&1 || true
+    adb shell rm -f /sdcard/_shot.png >/dev/null 2>&1 || true
+  fi
+  local sz
+  sz=$(stat -c%s "$out" 2>/dev/null || echo 0)
+  note "截图 $out ($sz 字节)"
+}
+
 echo "== API $API 等待设备 =="
 adb wait-for-device
 for _ in $(seq 1 90); do
@@ -51,7 +67,11 @@ case "$focus" in
   *)        note "App 不在前台（可能崩溃或启动失败）"; fail=$((fail+1)) ;;
 esac
 
-echo "== 崩溃检查 =="
+echo "== WebView 是否创建 =="
+wv=$(adb shell dumpsys window windows 2>/dev/null | grep -c "WebView" || true)
+note "窗口树里 WebView 出现次数: $wv"
+
+echo "== 崩溃检查 ==" 
 adb logcat -d 2>/dev/null | grep -aE "FATAL EXCEPTION|AndroidRuntime.*$PKG|E AndroidRuntime" | head -40 > "$OUT/crash.txt"
 if [ -s "$OUT/crash.txt" ]; then
   note "发现崩溃日志"; head -20 "$OUT/crash.txt"; fail=$((fail+1))
@@ -60,8 +80,7 @@ else
 fi
 
 echo "== 首屏截图 =="
-adb exec-out screencap -p > "$OUT/api${API}-launch.png"
-note "尺寸: $(file -b "$OUT/api${API}-launch.png" 2>/dev/null || echo '?')"
+shot "$OUT/api${API}-launch.png"
 
 # 白屏判断：统计 PNG 的颜色多样性，纯色/接近纯色视为白屏
 python3 - "$OUT/api${API}-launch.png" <<'PY' | tee "$OUT/whitecheck.txt"
@@ -83,7 +102,7 @@ note "屏幕 $W x $H"
 # 开始/停止按钮大致在首屏下部；先滚到能看见再点
 adb shell input tap $((W/2)) $((H*78/100)) 2>/dev/null || true
 sleep 6
-adb exec-out screencap -p > "$OUT/api${API}-after-tap.png"
+shot "$OUT/api${API}-after-tap.png"
 
 echo "== 再次检查崩溃 =="
 adb logcat -d 2>/dev/null | grep -aE "FATAL EXCEPTION|AndroidRuntime.*$PKG" | head -40 > "$OUT/crash2.txt"
