@@ -487,7 +487,7 @@ output {
   position: relative;
   width: min(280px, 85%);
   aspect-ratio: 1;
-  margin: 36px auto;
+  margin: 48px auto 30px;
   border-radius: 50%;
   border: 1px solid var(--separator);
   background:
@@ -508,7 +508,7 @@ output {
 }
 .north {
   position: absolute;
-  top: -25px;
+  top: -19px;
   left: calc(50% - 6px);
   font-size: 12px;
   color: var(--label-2);
@@ -538,70 +538,21 @@ output {
   background: var(--tint);
   color: white;
 }
-.sat-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  overflow-x: auto;
-  padding: 20px 0 4px;
-  min-height: 90px;
-}
-.sat-bar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 28px;
-  min-width: 28px;
-  flex: 0 0 28px;
-  text-align: center;
-  font-size: 10px;
-  color: var(--label-2);
-}
-.sat-bar > span {
-  display: block;
-  height: 20px;
-  line-height: 20px;
-  white-space: nowrap;
-}
-.sat-bar > .sat-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 40px;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
-}
-.sat-label > span {
-  display: block;
-  height: 20px;
-  white-space: nowrap;
-}
 /* 国旗用内联 SVG，尺寸固定，不依赖系统 Emoji 字体 */
 .sat-flag {
   display: block;
   flex: 0 0 auto;
-  width: 18px;
-  height: 12px;
-  border-radius: 2px;
+  width: 26px;
+  height: 17px;
+  border-radius: 3px;
   overflow: hidden;
   /* 浅色背景上给个极淡描边，暗色旗（美国）也能看出边界 */
   box-shadow: 0 0 0 1px rgba(26, 46, 78, 0.14);
 }
 /* 列表模式下国旗占固定槽位，保证各行编号左对齐 */
 .sat-cell-id .sat-flag {
-  flex: 0 0 20px;
-  width: 20px;
-}
-.sat-bar i {
-  display: block;
-  width: 24px;
-  flex-shrink: 0;
-  background: #7492b366;
-  border-radius: 5px 5px 0 0;
-  margin: 5px 0;
-}
-.sat-bar.used i {
-  background: var(--tint);
+  flex: 0 0 26px;
+  width: 26px;
 }
 #page-satellites > .surface {
   margin-bottom: 20px;
@@ -700,10 +651,6 @@ output {
   .sky {
     width: min(238px, 78%);
     margin: 20px auto;
-  }
-  .sat-bars {
-    min-height: 86px;
-    padding: 12px 0 2px;
   }
 }
 @media (min-width: 701px) {
@@ -1169,34 +1116,33 @@ html.modal-open body {
 .sky-dot i {
   font-style: normal;
   font-size: 8px;
+  letter-spacing: -0.2px;
   opacity: 0.85;
 }
 
-/* 柱状图标签里的频段小字 */
-.sat-band-tag {
-  font-size: 9px;
-  color: var(--tint-strong);
-  font-weight: 600;
-}
-.sat-bar.used .sat-band-tag {
-  color: #fff;
-  opacity: 0.9;
-}
 
 /* ==================== 卫星：列表明细 ==================== */
 .sat-table-head,
 .sat-row {
   display: grid;
-  grid-template-columns: 1.1fr 0.7fr 1.3fr 1fr;
+  grid-template-columns: 60px 50px minmax(0, 1fr) 78px;
   align-items: center;
   gap: 8px;
 }
 .sat-table-head {
+  display: grid;
+  grid-template-columns: 60px 50px minmax(0, 1fr) 78px;
+  gap: 8px;
+  align-items: center;
   margin-top: 16px;
   padding: 0 10px 8px;
   font-size: 11px;
   color: var(--label-2);
   border-bottom: 1px solid var(--separator);
+}
+.sat-table-head span:nth-child(3),
+.sat-table-head span:nth-child(4) {
+  text-align: right;
 }
 .sat-table {
   max-height: 340px;
@@ -1223,6 +1169,17 @@ html.modal-open body {
 .sat-cell-band {
   font-weight: 600;
   color: var(--tint-strong);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sat-cell-pos {
+  text-align: right;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--label-2);
   font-variant-numeric: tabular-nums;
 }
 .sat-cell-cn0 {
@@ -1293,14 +1250,6 @@ html.modal-open body {
   #sat-view-sky .sky {
     width: min(230px, 100%);
     margin: 30px auto 0;
-  }
-  #sat-view-sky .sat-bars {
-    min-height: 120px;
-    padding: 4px 0 0;
-  }
-  /* 柱高由脚本内联给出，横屏用 max-height 压住，保证标签与提示不被底栏吞掉 */
-  #sat-view-sky .sat-bar i {
-    max-height: 104px;
   }
   .brand {
     font-size: 15px;
