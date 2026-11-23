@@ -264,7 +264,12 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         if (!ready || isDestroyed) return
         val encoded = JSONObject().put("type", type).put("data", data)
         // 可选链 `?.` 需要 Chrome 80，低内核会整条脚本语法错误，改成 && 短路
-        web.evaluateJavascript("(()=>{const event=$encoded;window.GnssUI&&window.GnssUI.receive(event.type,event.data)})()", null)
+        // 必须用 ES5 写法：低版本 WebView（Chromium 30）不认箭头函数与 const，
+        // 一旦语法错误，原生发过去的所有事件都会被静默丢弃，界面停在空态。
+        web.evaluateJavascript(
+            "(function(){var e=$encoded;if(window.GnssUI){window.GnssUI.receive(e.type,e.data)}})()",
+            null
+        )
     }
 
     private fun publishConfig() {

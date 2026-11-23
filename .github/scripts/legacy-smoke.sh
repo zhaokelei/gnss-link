@@ -19,9 +19,10 @@ shot() {
   if [ "$API" -ge 20 ]; then
     adb exec-out screencap -p > "$out"
   else
-    adb shell screencap -p /sdcard/_shot.png >/dev/null 2>&1
-    adb pull /sdcard/_shot.png "$out" >/dev/null 2>&1 || true
-    adb shell rm -f /sdcard/_shot.png >/dev/null 2>&1 || true
+    # /sdcard 在 API 19 的模拟器上可能不可写，统一用 /data/local/tmp
+    adb shell screencap -p /data/local/tmp/_shot.png >/dev/null 2>&1
+    adb pull /data/local/tmp/_shot.png "$out" >/dev/null 2>&1 || true
+    adb shell rm -f /data/local/tmp/_shot.png >/dev/null 2>&1 || true
   fi
   local sz
   sz=$(stat -c%s "$out" 2>/dev/null || echo 0)
@@ -66,6 +67,16 @@ case "$focus" in
   *"$PKG"*) note "App 在前台"; pass=$((pass+1)) ;;
   *)        note "App 不在前台（可能崩溃或启动失败）"; fail=$((fail+1)) ;;
 esac
+
+echo "== 界面层级（WebView 是否真的有内容）=="
+adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1 || true
+adb pull /data/local/tmp/ui.xml "$OUT/ui-${API}.xml" >/dev/null 2>&1 || true
+if [ -f "$OUT/ui-${API}.xml" ]; then
+  note "界面节点数: $(grep -o "class=" "$OUT/ui-${API}.xml" | wc -l)"
+  note "可见文本: $(grep -o 'text="[^"]\+"' "$OUT/ui-${API}.xml" | head -12 | tr '\n' ' ')"
+else
+  note "uiautomator dump 失败"
+fi
 
 echo "== WebView 是否创建 =="
 wv=$(adb shell dumpsys window windows 2>/dev/null | grep -c "WebView" || true)
