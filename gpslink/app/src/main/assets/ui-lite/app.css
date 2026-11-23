@@ -1,0 +1,900 @@
+/* GNSS Link · 精简界面（低版本 WebView / Chromium 30+ 车机）
+   兼容约束：不使用 CSS 变量、gap、grid、clamp、inset、aspect-ratio、
+   backdrop-filter、color-mix。全部字面色值，纯色卡片。 */
+
+* {
+  box-sizing: border-box;
+}
+
+/* 老内核的 UA 样式 [hidden]{display:none} 会被 .btn.block 之类的 display 覆盖 */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #eef3fa;
+  color: #1a2e4e;
+  font-family: "Droid Sans Fallback", "Noto Sans CJK SC", "Source Han Sans SC",
+    "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+b,
+h1,
+h2 {
+  font-weight: bold;
+}
+
+h1 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: 0.2px;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.symbols {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ==================== 顶栏 ==================== */
+.topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #d9e2f0;
+}
+
+.brand {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  height: 46px;
+  padding: 0 12px;
+}
+
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+}
+
+.brand-icon svg,
+.about-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: #2f6fed;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.brand b {
+  font-size: 17px;
+}
+
+.brand-tag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid #cfdaeb;
+  border-radius: 6px;
+  color: #6b7f9b;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.tabs {
+  display: -webkit-flex;
+  display: flex;
+  border-top: 1px solid #eef2f8;
+}
+
+.tab {
+  -webkit-flex: 1 1 auto;
+  flex: 1 1 auto;
+  display: block;
+  padding: 7px 2px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #5a7290;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tab svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 0 auto 2px;
+  fill: none;
+  stroke: #7b8ea8;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tab span {
+  display: block;
+}
+
+.tab.on {
+  border-bottom-color: #2f6fed;
+  color: #2f6fed;
+}
+
+.tab.on svg {
+  stroke: #2f6fed;
+}
+
+/* ==================== 页面骨架 ==================== */
+main {
+  padding: 10px 10px 24px;
+}
+
+.page[hidden] {
+  display: none;
+}
+
+.page-head {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+  margin: 2px 2px 10px;
+}
+
+.state,
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid #cfdaeb;
+  border-radius: 20px;
+  background: #ffffff;
+  color: #5a7290;
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.state.online,
+.badge.ok {
+  border-color: #b7dcc6;
+  background: #eef8f1;
+  color: #1f8a4c;
+}
+
+.state.waiting {
+  border-color: #efd8ae;
+  background: #fdf6e8;
+  color: #9a6a13;
+}
+
+/* ==================== 卡片 ==================== */
+.cols {
+  margin: 0;
+}
+
+.card {
+  margin: 0 0 10px;
+  padding: 12px;
+  border: 1px solid #e2e9f4;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(26, 46, 78, 0.05);
+}
+
+.card-head {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+}
+
+.card-head h2 {
+  margin: 0;
+}
+
+/* ==================== 分段控件 ==================== */
+.field {
+  margin-bottom: 10px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  display: block;
+  margin: 0 0 5px;
+  color: #5a7290;
+  font-size: 12px;
+}
+
+.seg {
+  display: -webkit-flex;
+  display: flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: #eef3fa;
+}
+
+.seg-btn {
+  -webkit-flex: 1 1 auto;
+  flex: 1 1 auto;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #4a6382;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.seg-btn.on {
+  background: #ffffff;
+  color: #2f6fed;
+  font-weight: bold;
+  box-shadow: 0 1px 2px rgba(26, 46, 78, 0.12);
+}
+
+.seg-btn[disabled] {
+  opacity: 0.6;
+}
+
+/* ==================== 表单 ==================== */
+label {
+  display: block;
+}
+
+input[type="text"],
+input[type="number"] {
+  display: block;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cfdaeb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a2e4e;
+  font-family: inherit;
+  font-size: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[disabled] {
+  background: #f4f7fc;
+  color: #8fa2b9;
+}
+
+.hint {
+  display: block;
+  margin: 6px 0 0;
+  color: #7b8ea8;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.switch-text .hint {
+  margin-top: 2px;
+}
+
+.note {
+  margin: 8px 0 0;
+  color: #3c5574;
+  font-size: 13px;
+}
+
+.note.dim {
+  margin-top: 4px;
+  color: #7b8ea8;
+  font-size: 12px;
+}
+
+.value {
+  margin: 0;
+  color: #1a2e4e;
+  font-size: 14px;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+.value.link {
+  color: #2f6fed;
+}
+
+.inline-row {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.inline-row .value {
+  -webkit-flex: 1 1 auto;
+  flex: 1 1 auto;
+  padding-right: 10px;
+  color: #3c5574;
+  font-size: 13px;
+}
+
+/* ==================== 按钮 ==================== */
+.btn {
+  display: inline-block;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #cfdaeb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1a2e4e;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 38px;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.btn.primary {
+  border-color: #2f6fed;
+  background: #2f6fed;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.btn.danger {
+  border-color: #e2b6b2;
+  color: #b93b32;
+}
+
+.btn.small {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 30px;
+}
+
+.btn.block {
+  display: block;
+  width: 100%;
+}
+
+.btn[disabled] {
+  opacity: 0.5;
+}
+
+.btn-row {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  margin: 0 -4px;
+}
+
+.btn-row .btn {
+  -webkit-flex: 1 1 auto;
+  flex: 1 1 auto;
+  margin: 0 4px 4px;
+}
+
+/* ==================== 开关行 ==================== */
+.switch-row {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.switch-row:last-child {
+  border-bottom: 0;
+}
+
+.switch-text {
+  -webkit-flex: 1 1 auto;
+  flex: 1 1 auto;
+  padding-right: 12px;
+}
+
+.switch-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+input.switch {
+  -webkit-flex: 0 0 auto;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+}
+
+/* ==================== 定位实况 ==================== */
+.coord {
+  margin: 2px 0 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f5f8fd;
+}
+
+.coord b {
+  display: block;
+  color: #1a2e4e;
+  font-size: 17px;
+  line-height: 1.35;
+  word-wrap: break-word;
+}
+
+.coord small {
+  display: block;
+  margin-top: 2px;
+  color: #7b8ea8;
+  font-size: 11px;
+}
+
+.metrics {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  margin: 0 -4px;
+}
+
+.metric {
+  width: 50%;
+  padding: 4px;
+}
+
+.metric span {
+  display: block;
+  color: #7b8ea8;
+  font-size: 11px;
+}
+
+.metric b {
+  display: block;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kv {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: baseline;
+  align-items: baseline;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.kv:last-child {
+  border-bottom: 0;
+}
+
+.kv span {
+  color: #7b8ea8;
+  font-size: 12px;
+}
+
+.kv b {
+  padding-left: 10px;
+  font-size: 13px;
+  text-align: right;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+/* ==================== 卫星表 ==================== */
+.sat-head,
+.sat-row {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.sat-head {
+  border-bottom: 1px solid #d9e2f0;
+  color: #7b8ea8;
+  font-size: 11px;
+}
+
+.sat-row {
+  border-bottom: 1px solid #eef2f8;
+}
+
+.sat-row:last-child {
+  border-bottom: 0;
+}
+
+.c-id {
+  -webkit-flex: 0 0 96px;
+  flex: 0 0 96px;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+}
+
+.c-band {
+  -webkit-flex: 0 0 72px;
+  flex: 0 0 72px;
+  color: #5a7290;
+  font-size: 12px;
+}
+
+.c-cn0 {
+  -webkit-flex: 1 1 auto;
+  flex: 1 1 auto;
+  color: #1a2e4e;
+  font-size: 13px;
+  text-align: right;
+}
+
+.sat-head .c-cn0 {
+  color: #7b8ea8;
+  font-size: 11px;
+}
+
+.sat-body {
+  margin-bottom: 10px;
+}
+
+.sat-row.used .c-cn0,
+.sat-row.used .c-id b {
+  color: #2f6fed;
+}
+
+.flag {
+  -webkit-flex: 0 0 auto;
+  flex: 0 0 auto;
+  display: block;
+  width: 16px;
+  height: 11px;
+  margin-right: 6px;
+  border: 1px solid rgba(26, 46, 78, 0.12);
+  border-radius: 1px;
+}
+
+.c-id b {
+  font-size: 13px;
+}
+
+/* ==================== 关于 ==================== */
+.about-head {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: flex-start;
+  align-items: flex-start;
+}
+
+.about-icon {
+  -webkit-flex: 0 0 auto;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin-right: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #eaf1fd;
+}
+
+.about-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.about-name {
+  display: block;
+  font-size: 16px;
+}
+
+.about-version {
+  margin-top: 4px;
+  color: #7b8ea8;
+  font-size: 12px;
+}
+
+/* ==================== 日志 ==================== */
+.logs {
+  max-height: 150px;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: #f5f8fd;
+  color: #3c5574;
+  font-family: "Droid Sans Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* ==================== 弹层 ==================== */
+.modal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(16, 34, 58, 0.45);
+}
+
+.modal-card {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 36px;
+  bottom: 36px;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  padding: 12px;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.log-body {
+  -webkit-flex: 1 1 auto;
+  flex: 1 1 auto;
+  margin: 8px 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.log-body p {
+  margin: 0 0 6px;
+  color: #3c5574;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.log-body p.log-h {
+  margin: 10px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #eef2f8;
+  color: #2f6fed;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.log-body p.log-note {
+  color: #7b8ea8;
+  font-size: 11px;
+}
+
+/* ==================== 提示条 ==================== */
+.notice {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 60;
+  width: 276px;
+  margin-left: -138px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #1a2e4e;
+  color: #ffffff;
+  font-size: 13px;
+  text-align: center;
+}
+
+.notice[hidden] {
+  display: none;
+}
+
+/* ==================== 宽屏：车机横屏 / 平板 ==================== */
+@media (min-width: 700px) {
+  body {
+    font-size: 16px;
+  }
+
+  .brand {
+    height: 54px;
+    padding: 0 20px;
+  }
+
+  .brand b {
+    font-size: 20px;
+  }
+
+  .brand-icon {
+    width: 30px;
+    height: 30px;
+    margin-right: 8px;
+  }
+
+  .brand-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .tab {
+    padding: 9px 4px 8px;
+    font-size: 14px;
+  }
+
+  .tab svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 16px 20px 32px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
+
+  .cols {
+    display: -webkit-flex;
+    display: flex;
+    margin: 0 -6px;
+  }
+
+  .col {
+    -webkit-flex: 1 1 0;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 6px;
+  }
+
+  .card {
+    margin-bottom: 12px;
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .seg-btn {
+    padding: 9px 6px;
+    font-size: 15px;
+  }
+
+  input[type="text"],
+  input[type="number"] {
+    height: 42px;
+    font-size: 15px;
+  }
+
+  .btn {
+    height: 42px;
+    font-size: 15px;
+    line-height: 40px;
+  }
+
+  .btn.small {
+    height: 34px;
+    font-size: 13px;
+    line-height: 32px;
+  }
+
+  .coord b {
+    font-size: 22px;
+  }
+
+  .sat-row,
+  .sat-head {
+    padding: 8px 0;
+  }
+
+  .c-id {
+    -webkit-flex-basis: 130px;
+    flex-basis: 130px;
+  }
+
+  .c-band {
+    -webkit-flex-basis: 96px;
+    flex-basis: 96px;
+    font-size: 14px;
+  }
+
+  .c-cn0 {
+    font-size: 15px;
+  }
+
+  .sat-row .c-id b {
+    font-size: 15px;
+  }
+
+  .flag {
+    width: 20px;
+    height: 13px;
+    margin-right: 8px;
+  }
+
+  .metric b {
+    font-size: 18px;
+  }
+
+  .about-name {
+    font-size: 18px;
+  }
+
+  .logs {
+    max-height: 210px;
+    font-size: 12px;
+  }
+
+  .modal-card {
+    left: 50%;
+    right: auto;
+    top: 48px;
+    bottom: 48px;
+    width: 620px;
+    margin-left: -310px;
+    padding: 18px;
+  }
+
+  .log-body p {
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 1000px) {
+  main {
+    max-width: 1160px;
+  }
+}

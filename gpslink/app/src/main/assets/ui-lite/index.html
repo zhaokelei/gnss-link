@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>GNSS Link</title>
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <!-- 图标与国旗：老内核要求 <use> 走 xlink:href，symbol 自带 viewBox -->
+    <svg class="symbols" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true">
+      <defs>
+        <symbol id="link" viewBox="0 0 24 24">
+          <path
+            d="m9 15 6-6M8 17l-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 8a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-1 1"
+            transform="translate(1 0) scale(.9)"
+          />
+        </symbol>
+        <symbol id="sat" viewBox="0 0 24 24">
+          <path
+            d="m8 8 8 8m-6-13 4 4-4 4-4-4Zm7 7 4 4-4 4-4-4ZM4 13a7 7 0 0 0 7 7m-7-4a3 3 0 0 0 3 3m9-15 4 4"
+          />
+        </symbol>
+        <symbol id="settings" viewBox="0 0 24 24">
+          <path d="M5 3v18m7-18v18m7-18v18M2 8h6m1 8h6m1-10h6" />
+        </symbol>
+        <symbol id="info" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v6m0-10v.6" />
+        </symbol>
+        <symbol id="arrow" viewBox="0 0 24 24">
+          <path d="M4 12h16m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="flag-us" viewBox="0 0 24 16">
+          <rect width="24" height="16" fill="#fff" />
+          <g fill="#c8102e">
+            <rect width="24" height="2.29" y="0" />
+            <rect width="24" height="2.29" y="4.57" />
+            <rect width="24" height="2.29" y="9.14" />
+            <rect width="24" height="2.29" y="13.71" />
+          </g>
+          <rect width="10" height="9.14" fill="#3d4f9f" />
+        </symbol>
+        <symbol id="flag-cn" viewBox="0 0 24 16">
+          <rect width="24" height="16" fill="#de2910" />
+          <path
+            d="M4.4 2.1 5.44 4.72 8.25 4.85 6.05 6.5 6.8 9.2 4.4 7.6 2 9.2 2.75 6.5 .55 4.85 3.36 4.72Z"
+            fill="#ffde00"
+          />
+          <g fill="#ffde00">
+            <circle cx="7.4" cy="2.4" r=".62" />
+            <circle cx="8.6" cy="3.9" r=".62" />
+            <circle cx="8.5" cy="5.9" r=".62" />
+            <circle cx="7.2" cy="7.3" r=".62" />
+          </g>
+        </symbol>
+        <symbol id="flag-ru" viewBox="0 0 24 16">
+          <rect width="24" height="5.34" fill="#fff" />
+          <rect width="24" height="5.34" y="5.34" fill="#0039a6" />
+          <rect width="24" height="5.34" y="10.68" fill="#d52b1e" />
+        </symbol>
+        <symbol id="flag-eu" viewBox="0 0 24 16">
+          <rect width="24" height="16" fill="#003399" />
+          <g fill="#ffcc00">
+            <circle cx="12" cy="3.1" r=".85" />
+            <circle cx="12" cy="12.9" r=".85" />
+            <circle cx="6.9" cy="4.6" r=".85" />
+            <circle cx="17.1" cy="4.6" r=".85" />
+            <circle cx="4.2" cy="8" r=".85" />
+            <circle cx="19.8" cy="8" r=".85" />
+            <circle cx="6.9" cy="11.4" r=".85" />
+            <circle cx="17.1" cy="11.4" r=".85" />
+          </g>
+        </symbol>
+        <symbol id="flag-jp" viewBox="0 0 24 16">
+          <rect width="24" height="16" fill="#fff" />
+          <circle cx="12" cy="8" r="4.2" fill="#bc002d" />
+        </symbol>
+        <symbol id="flag-in" viewBox="0 0 24 16">
+          <rect width="24" height="5.34" fill="#ff9933" />
+          <rect width="24" height="5.34" y="5.34" fill="#fff" />
+          <rect width="24" height="5.34" y="10.68" fill="#138808" />
+          <circle cx="12" cy="8" r="1.8" fill="none" stroke="#000080" stroke-width=".55" />
+          <circle cx="12" cy="8" r=".45" fill="#000080" />
+        </symbol>
+        <symbol id="flag-globe" viewBox="0 0 24 16">
+          <rect width="24" height="16" fill="#5b6b82" />
+          <circle cx="12" cy="8" r="5" fill="none" stroke="#dfe8f5" stroke-width=".8" />
+          <ellipse cx="12" cy="8" rx="2.2" ry="5" fill="none" stroke="#dfe8f5" stroke-width=".7" />
+          <path d="M7 5.6h10M7 10.4h10" stroke="#dfe8f5" stroke-width=".7" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon"><svg><use xlink:href="#link" /></svg></span>
+        <b>GNSS Link</b>
+        <span class="brand-tag">精简</span>
+      </div>
+      <div class="tabs" id="tabs">
+        <button type="button" class="tab on" data-tab="link" aria-selected="true">
+          <svg><use xlink:href="#link" /></svg><span>连接</span>
+        </button>
+        <button type="button" class="tab" data-tab="satellites" aria-selected="false">
+          <svg><use xlink:href="#sat" /></svg><span>卫星</span>
+        </button>
+        <button type="button" class="tab" data-tab="settings" aria-selected="false">
+          <svg><use xlink:href="#settings" /></svg><span>设置</span>
+        </button>
+        <button type="button" class="tab" data-tab="about" aria-selected="false">
+          <svg><use xlink:href="#info" /></svg><span>关于</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <!-- ==================== 连接 ==================== -->
+      <section class="page" id="page-link">
+        <div class="page-head">
+          <h1>定位共享</h1>
+          <span class="state" id="state">未启动</span>
+        </div>
+
+        <div class="cols">
+          <div class="col">
+            <div class="card">
+              <div class="field">
+                <span class="label">角色</span>
+                <div class="seg" id="role">
+                  <button type="button" class="seg-btn on" data-value="sender" aria-selected="true">发送定位</button>
+                  <button type="button" class="seg-btn" data-value="receiver" aria-selected="false">接收定位</button>
+                </div>
+              </div>
+              <div class="field">
+                <span class="label">传输方式</span>
+                <div class="seg" id="mode">
+                  <button type="button" class="seg-btn on" data-value="lan" aria-selected="true">局域网</button>
+                  <button type="button" class="seg-btn" data-value="bt" aria-selected="false">蓝牙</button>
+                </div>
+              </div>
+              <p class="hint" id="action-hint">两台设备连接同一 Wi-Fi 或热点，并使用相同房间码。</p>
+            </div>
+
+            <div class="card">
+              <div class="field">
+                <label for="sid">房间码</label>
+                <input id="sid" type="text" maxlength="64" autocomplete="off" value="8888" />
+              </div>
+              <div id="lan-settings">
+                <div class="field">
+                  <label for="port">连接端口</label>
+                  <input id="port" type="number" min="1024" max="65535" value="7007" />
+                </div>
+                <div class="field">
+                  <label for="host">接收端 IP（可选）</label>
+                  <input id="host" type="text" autocomplete="off" placeholder="留空自动发现" />
+                </div>
+              </div>
+              <div id="bt-settings" hidden>
+                <span class="label">蓝牙设备</span>
+                <div class="inline-row">
+                  <span class="value" id="bt-device">未选择设备</span>
+                  <button type="button" class="btn small" id="pick-bt">选择设备</button>
+                </div>
+                <p class="hint">共享端选择已配对的接收设备，接收端直接开始接收。</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="btn-row">
+                <button type="button" class="btn primary block" id="start">开始共享</button>
+                <button type="button" class="btn danger block" id="stop" hidden>停止共享</button>
+              </div>
+              <p class="note" id="peer">等待建立连接</p>
+              <p class="note dim">
+                <span id="mode-label">UDP 7007</span> · 房间码
+                <b id="room-label">8888</b>
+              </p>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <div class="card-head">
+                <h2>定位实况</h2>
+                <span class="badge" id="fix-badge">等待定位</span>
+              </div>
+              <div class="coord">
+                <b id="coordinates">—</b>
+                <small id="coord-sub">启动后显示实时经纬度</small>
+              </div>
+              <div class="metrics">
+                <div class="metric"><span>定位精度</span><b id="accuracy">—</b></div>
+                <div class="metric"><span>移动速度</span><b id="speed">—</b></div>
+                <div class="metric"><span>海拔高度</span><b id="altitude">—</b></div>
+                <div class="metric"><span>航向</span><b id="bearing">—</b></div>
+              </div>
+              <p class="note dim" id="age"></p>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h2>链路状态</h2>
+              </div>
+              <div class="kv"><span>本机地址</span><b id="local-ip">—</b></div>
+              <div class="kv"><span>对方地址</span><b id="peer-addr">—</b></div>
+              <div class="kv"><span>帧率</span><b id="rate">—</b></div>
+              <div class="kv"><span id="latency-label">往返延迟</span><b id="latency">—</b></div>
+              <div class="kv"><span>接收数据包</span><b id="packets">0</b></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 卫星 ==================== -->
+      <section class="page" id="page-satellites" hidden>
+        <div class="page-head">
+          <h1>卫星观测</h1>
+          <span class="badge" id="sat-count">可见 0 · 定位 0</span>
+        </div>
+        <div class="card">
+          <p class="note dim" id="sat-source">本机 GNSS 信号</p>
+          <div class="sat-head">
+            <span class="c-id">卫星</span>
+            <span class="c-band">频段</span>
+            <span class="c-cn0">信号 dB-Hz</span>
+          </div>
+          <div class="sat-body" id="sat-body">
+            <p class="note dim">等待卫星数据</p>
+          </div>
+          <p class="hint" id="sat-hint">开启系统定位，到室外或窗边接收信号。</p>
+        </div>
+      </section>
+
+      <!-- ==================== 设置 ==================== -->
+      <section class="page" id="page-settings" hidden>
+        <div class="page-head">
+          <h1>偏好设置</h1>
+        </div>
+
+        <div class="cols">
+          <div class="col">
+            <div class="card">
+              <h2>定位频率</h2>
+              <span class="label">发送采样</span>
+              <div class="seg" id="sample">
+                <button type="button" class="seg-btn on" data-value="1000" aria-selected="true">1 Hz</button>
+                <button type="button" class="seg-btn" data-value="500" aria-selected="false">2 Hz</button>
+                <button type="button" class="seg-btn" data-value="200" aria-selected="false">5 Hz</button>
+                <button type="button" class="seg-btn" data-value="100" aria-selected="false">10 Hz</button>
+              </div>
+              <span class="label">接收注入</span>
+              <div class="seg" id="inject">
+                <button type="button" class="seg-btn" data-value="1000" aria-selected="false">1 Hz</button>
+                <button type="button" class="seg-btn" data-value="200" aria-selected="false">5 Hz</button>
+                <button type="button" class="seg-btn on" data-value="100" aria-selected="true">10 Hz</button>
+              </div>
+              <p class="hint">实际采样频率取决于发送设备的定位能力。</p>
+            </div>
+
+            <div class="card">
+              <h2>界面显示</h2>
+              <span class="label">屏幕方向</span>
+              <div class="seg" id="orientation">
+                <button type="button" class="seg-btn on" data-value="auto" aria-selected="true">跟随系统</button>
+                <button type="button" class="seg-btn" data-value="landscape" aria-selected="false">强制横屏</button>
+                <button type="button" class="seg-btn" data-value="portrait" aria-selected="false">强制竖屏</button>
+              </div>
+              <p class="hint">车机把界面锁成竖屏时，可在这里强制横屏。</p>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <h2>开关</h2>
+              <label class="switch-row">
+                <span class="switch-text">
+                  <span class="switch-label">开机自动启动</span>
+                  <span class="hint" id="autostart-hint">按上次使用的角色与参数自动运行。</span>
+                </span>
+                <input type="checkbox" class="switch" id="autostart" />
+              </label>
+
+              <label class="switch-row">
+                <span class="switch-text">
+                  <span class="switch-label">NMEA 输出</span>
+                  <span class="hint" id="nmea-state">未开启</span>
+                </span>
+                <input type="checkbox" class="switch" id="nmea" />
+              </label>
+              <div class="field">
+                <label for="nmea-port">NMEA 端口</label>
+                <input id="nmea-port" type="number" min="1024" max="65535" value="10110" />
+              </div>
+
+              <label class="switch-row">
+                <span class="switch-text">
+                  <span class="switch-label">轨迹记录</span>
+                  <span class="hint">收到定位时按帧落盘，可离线回放。</span>
+                </span>
+                <input type="checkbox" class="switch" id="track-toggle" />
+              </label>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h2>设备授权</h2>
+              </div>
+              <div class="kv"><span>定位权限</span><b id="check-location">待检查</b></div>
+              <div class="kv"><span>模拟位置应用</span><b id="check-mock">待检查</b></div>
+              <div class="btn-row">
+                <button type="button" class="btn small" id="permissions">授予权限</button>
+                <button type="button" class="btn small" id="mock">开发者选项</button>
+                <button type="button" class="btn small" id="recheck">重新检查</button>
+              </div>
+              <p class="hint">接收端需把 GNSS Link 设为模拟位置应用。</p>
+            </div>
+
+            <div class="card">
+              <h2>运行日志</h2>
+              <pre class="logs" id="logs">暂无日志</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 关于 ==================== -->
+      <section class="page" id="page-about" hidden>
+        <div class="page-head">
+          <h1>关于</h1>
+        </div>
+
+        <div class="cols">
+          <div class="col">
+            <div class="card">
+              <div class="about-head">
+                <span class="about-icon"><svg><use xlink:href="#link" /></svg></span>
+                <div>
+                  <b class="about-name">GNSS Link</b>
+                  <span class="hint">把本机定位共享到平板或车机</span>
+                  <div class="about-version">版本 <b id="about-version">1.2.6</b></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>作者</h2>
+              <p class="value">小磊</p>
+            </div>
+
+            <div class="card">
+              <h2>更新</h2>
+              <div class="btn-row">
+                <button type="button" class="btn" id="check-update">检查更新</button>
+                <button type="button" class="btn" id="open-log">更新日志</button>
+              </div>
+              <p class="hint" id="update-state">当前版本 1.2.6，点按钮可立即检查。</p>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <h2>GitHub 项目</h2>
+              <p class="value link">https://github.com/zhaokelei/gnss-link</p>
+              <div class="btn-row">
+                <button type="button" class="btn small" data-open="https://github.com/zhaokelei/gnss-link">打开</button>
+                <button type="button" class="btn small" data-copy="https://github.com/zhaokelei/gnss-link">复制</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>主页</h2>
+              <p class="value link">www.iqiq.cn</p>
+              <div class="btn-row">
+                <button type="button" class="btn small" data-open="https://www.iqiq.cn">打开</button>
+                <button type="button" class="btn small" data-copy="https://www.iqiq.cn">复制</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal" id="log-modal" hidden>
+      <div class="modal-mask" id="log-mask"></div>
+      <div class="modal-card">
+        <div class="card-head">
+          <h2>更新日志</h2>
+          <button type="button" class="btn small" id="log-close">关闭</button>
+        </div>
+        <div class="log-body" id="log-body">
+          <p class="hint">正在获取…</p>
+        </div>
+        <button type="button" class="btn small block" id="log-retry" hidden>重试</button>
+      </div>
+    </div>
+
+    <div class="notice" id="notice" hidden></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -17,6 +17,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -64,8 +65,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private var lastApkPath = ""
     private val updatePrefs by lazy { getSharedPreferences("update", Context.MODE_PRIVATE) }
     private val currentVersion: String by lazy {
-        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.5" }
-        catch (_: Throwable) { "1.2.5" }
+        try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.6" }
+        catch (_: Throwable) { "1.2.6" }
     }
     private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (hasLocationPermission()) {
@@ -97,29 +98,104 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         web.settings.loadWithOverviewMode = true
         web.settings.allowFileAccess = false
         web.settings.allowContentAccess = false
-        web.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            web.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        }
         web.addJavascriptInterface(Bridge(), "Android")
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse {
-                val uri = request.url
-                val path = uri.path.orEmpty().removePrefix("/ui/")
-                if (uri.scheme != "https" || uri.host != "appassets.androidplatform.net" ||
-                    !uri.path.orEmpty().startsWith("/ui/") || !path.matches(Regex("[a-zA-Z0-9.-]+"))) {
-                    return WebResourceResponse("text/plain", "UTF-8", 403, "Forbidden", emptyMap(), "".byteInputStream())
-                }
-                val mime = when (path.substringAfterLast('.')) {
-                    "html" -> "text/html"
-                    "css" -> "text/css"
-                    "js", "mjs" -> "application/javascript"
-                    else -> "application/octet-stream"
-                }
-                return try { WebResourceResponse(mime, "UTF-8", assets.open("ui/$path")) }
-                catch (_: Exception) { WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", emptyMap(), "".byteInputStream()) }
-            }
+
+            // API 24 以下只会回调 String 版
+            @Suppress("DEPRECATION", "OverridingDeprecatedMember")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
+
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                serveAsset(request.url.toString())
+
+            // API 21 以下只会回调 String 版
+            @Suppress("DEPRECATION", "OverridingDeprecatedMember")
+            override fun shouldInterceptRequest(view: WebView, url: String): WebResourceResponse? =
+                serveAsset(url)
         }
-        web.loadUrl("https://appassets.androidplatform.net/ui/index.html")
+        loadStartPage()
         LinkBus.add(this)
+    }
+
+    /**
+     * 把 `https://appassets.androidplatform.net/...` 的请求映射回 assets 目录。
+     *
+     * 完整界面在 `ui/`，低内核用的精简界面在 `ui-lite/`，两边都按相对路径引用资源，
+     * 所以这里要放行两套前缀。返回 null 表示不拦截、交给 WebView 自己处理。
+     */
+    private fun serveAsset(rawUrl: String): WebResourceResponse? {
+        val uri = Uri.parse(rawUrl)
+        if (uri.scheme != "https" || uri.host != "appassets.androidplatform.net") return null
+        val fullPath = uri.path.orEmpty()
+        val dir = when {
+            fullPath.startsWith("/ui-lite/") -> "ui-lite"
+            fullPath.startsWith("/ui/") -> "ui"
+            else -> return buildResponse("text/plain", 403, "Forbidden", "".byteInputStream())
+        }
+        val path = fullPath.removePrefix("/$dir/")
+        if (!path.matches(Regex("[a-zA-Z0-9._-]+"))) {
+            return buildResponse("text/plain", 403, "Forbidden", "".byteInputStream())
+        }
+        val mime = when (path.substringAfterLast('.')) {
+            "html" -> "text/html"
+            "css" -> "text/css"
+            "js", "mjs" -> "application/javascript"
+            else -> "application/octet-stream"
+        }
+        return try {
+            buildResponse(mime, 200, "OK", assets.open("$dir/$path"))
+        } catch (_: Exception) {
+            buildResponse("text/plain", 404, "Not Found", "".byteInputStream())
+        }
+    }
+
+    /** 6 参构造是 API 21；低版本退回 3 参（拿不到状态码，语义上等价于 200/空体） */
+    private fun buildResponse(
+        mime: String,
+        code: Int,
+        reason: String,
+        data: java.io.InputStream
+    ): WebResourceResponse =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            WebResourceResponse(mime, "UTF-8", code, reason, emptyMap(), data)
+        } else {
+            WebResourceResponse(mime, "UTF-8", data)
+        }
+
+    /**
+     * 按 WebView 内核版本选择界面。
+     *
+     * 阈值 Chrome 80：`>= 80` 用现有的完整界面 `ui/`，`< 80` 或解析不到版本时用精简界面
+     * `ui-lite/`。精简界面由另一位同事维护，可能暂时为空 —— 找不到时给一个纯文本兜底页，
+     * 保证不会白屏或崩溃。
+     */
+    private fun loadStartPage() {
+        val ua = try { web.settings.userAgentString } catch (_: Throwable) { null }
+        val chrome = ua?.let { Regex("Chrome/(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }
+        val useLite = chrome == null || chrome < 80
+        Log.i(
+            TAG,
+            "WebView UA Chrome=${chrome ?: "unknown"} -> ${if (useLite) "ui-lite(精简界面)" else "ui(完整界面)"}"
+        )
+        if (useLite) {
+            val hasLite = try {
+                assets.open("ui-lite/index.html").use { true }
+            } catch (_: Throwable) {
+                false
+            }
+            if (!hasLite) {
+                Log.w(TAG, "assets/ui-lite/index.html 不存在，显示兜底页")
+                web.loadDataWithBaseURL(null, FALLBACK_HTML, "text/html", "utf-8", null)
+            } else {
+                web.loadUrl("https://appassets.androidplatform.net/ui-lite/index.html")
+            }
+        } else {
+            web.loadUrl("https://appassets.androidplatform.net/ui/index.html")
+        }
     }
 
     private inner class Bridge {
@@ -188,7 +264,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private fun emit(type: String, data: Any) {
         if (!ready || isDestroyed) return
         val encoded = JSONObject().put("type", type).put("data", data)
-        web.evaluateJavascript("(()=>{const event=$encoded;window.GnssUI?.receive(event.type,event.data)})()", null)
+        // 可选链 `?.` 需要 Chrome 80，低内核会整条脚本语法错误，改成 && 短路
+        web.evaluateJavascript("(()=>{const event=$encoded;window.GnssUI&&window.GnssUI.receive(event.type,event.data)})()", null)
     }
 
     private fun publishConfig() {
@@ -319,9 +396,20 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
        更新包与更新日志都由 gps.iqiq.cn 分发，服务器上的文件通过 FTP 上传维护。
        网络不通、内容异常一律静默跳过，不打扰主流程。 */
     companion object {
+        private const val TAG = "GnssLink"
         private const val BASE_URL = "https://gps.iqiq.cn/download"
         private const val LOG_URL = "$BASE_URL/update-log.txt"
-        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.5"
+        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.6"
+
+        /** 精简界面缺失时的纯文本兜底页，不依赖任何脚本/样式 */
+        private const val FALLBACK_HTML =
+            "<!doctype html><meta charset='utf-8'>" +
+                "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+                "<body style='font-family:sans-serif;padding:24px;line-height:1.6;color:#333'>" +
+                "<h3>GNSS Link</h3>" +
+                "<p>当前 WebView 内核版本较低，精简界面尚未安装。</p>" +
+                "<p>请升级系统 WebView 或安装完整版后再试。</p>" +
+                "</body>"
     }
 
     private fun open(url: String, readTimeout: Int = 20000): HttpURLConnection =
@@ -368,6 +456,19 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     }
 
     private fun checkUpdate() {
+        // 低版本用 file:// 安装 APK 会失败，这类老设备也基本不联网更新，直接跳过自更新
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            Log.i(TAG, "系统版本过低（<24），跳过自更新检查")
+            emit("update-check", JSONObject()
+                .put("tag", "")
+                .put("latest", "")
+                .put("current", currentVersion)
+                .put("size", 0)
+                .put("needUpdate", false)
+                .put("skipped", true)
+                .put("notes", ""))
+            return
+        }
         thread {
             try {
                 // 版本号与安装包名由发布流程写在更新日志头部，这里直接读它
@@ -497,6 +598,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     }
 
     private fun installUpdate(path: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            toast("当前系统版本不支持应用内安装，请手动安装新版")
+            return
+        }
         val apk = File(path)
         if (!apk.exists() || apk.length() < 1024) {
             toast("安装包不存在或不完整，请重新下载")
@@ -538,8 +643,11 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     @Suppress("DEPRECATION")
     private fun applySystemTheme(dark: Boolean) {
         val color = android.graphics.Color.parseColor(if (dark) "#101923" else "#eef3fa")
-        window.statusBarColor = color
-        window.navigationBarColor = color
+        // setStatusBarColor / setNavigationBarColor 都是 API 21
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = color
+            window.navigationBarColor = color
+        }
         window.decorView.systemUiVisibility = if (dark) 0 else android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
     }
 

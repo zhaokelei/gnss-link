@@ -1,6 +1,7 @@
 package top.wxip.gpslink.core
 
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import org.json.JSONObject
@@ -69,9 +70,12 @@ data class LocationFrame(
         bearing = this@LocationFrame.bearing
         time = System.currentTimeMillis()
         elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-        verticalAccuracyMeters = this@LocationFrame.verticalAccuracy.coerceAtLeast(0f)
-        speedAccuracyMetersPerSecond = this@LocationFrame.speedAccuracy.coerceAtLeast(0f)
-        bearingAccuracyDegrees = this@LocationFrame.bearingAccuracy.coerceAtLeast(0f)
+        // 三个精度字段是 API 26 才有，低版本直接写会 NoSuchMethodError
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            verticalAccuracyMeters = this@LocationFrame.verticalAccuracy.coerceAtLeast(0f)
+            speedAccuracyMetersPerSecond = this@LocationFrame.speedAccuracy.coerceAtLeast(0f)
+            bearingAccuracyDegrees = this@LocationFrame.bearingAccuracy.coerceAtLeast(0f)
+        }
 
         // AOSP 的 GnssLocationProvider 会给定位结果塞这几个 extras，
         // 读 getExtras() 的应用（GPS Test、部分导航 SDK）就是靠它显示卫星数。
@@ -94,11 +98,14 @@ data class LocationFrame(
     private fun Location.markValid() {
         // 我们给这些字段都赋了明确值，所以统一标记为有效
         val always = listOf("setHasSpeed", "setHasBearing", "setHasAccuracy", "setHasAltitude")
-        val conditional = listOf(
-            "setHasVerticalAccuracy" to verticalAccuracyMeters,
-            "setHasSpeedAccuracy" to speedAccuracyMetersPerSecond,
-            "setHasBearingAccuracy" to bearingAccuracyDegrees,
-        )
+        // 下面三项会读取 *AccuracyMeters/Degrees，都是 API 26 的 getter，低版本不能碰
+        val conditional = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            listOf(
+                "setHasVerticalAccuracy" to verticalAccuracyMeters,
+                "setHasSpeedAccuracy" to speedAccuracyMetersPerSecond,
+                "setHasBearingAccuracy" to bearingAccuracyDegrees,
+            )
+        } else emptyList()
         val type = Boolean::class.javaPrimitiveType ?: return
         for (name in always) {
             try {
@@ -125,9 +132,12 @@ data class LocationFrame(
             accuracy = if (loc.hasAccuracy()) loc.accuracy else 5f,
             speed = if (loc.hasSpeed()) loc.speed else 0f,
             bearing = if (loc.hasBearing()) loc.bearing else 0f,
-            verticalAccuracy = if (loc.hasVerticalAccuracy()) loc.verticalAccuracyMeters else 0f,
-            speedAccuracy = if (loc.hasSpeedAccuracy()) loc.speedAccuracyMetersPerSecond else 0f,
-            bearingAccuracy = if (loc.hasBearingAccuracy()) loc.bearingAccuracyDegrees else 0f,
+            verticalAccuracy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                loc.hasVerticalAccuracy()) loc.verticalAccuracyMeters else 0f,
+            speedAccuracy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                loc.hasSpeedAccuracy()) loc.speedAccuracyMetersPerSecond else 0f,
+            bearingAccuracy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                loc.hasBearingAccuracy()) loc.bearingAccuracyDegrees else 0f,
             timeMs = System.currentTimeMillis(),
             srcAgeMs = if (loc.time > 0) {
                 (System.currentTimeMillis() - loc.time).coerceIn(0L, 60_000L)

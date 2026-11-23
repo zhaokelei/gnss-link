@@ -3,6 +3,7 @@ package top.wxip.gpslink.ui
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 import top.wxip.gpslink.core.Gnss
@@ -44,6 +45,9 @@ class SatelliteBarsView @JvmOverloads constructor(
         color = 0xFFE3E6EA.toInt()
     }
 
+    /** drawRoundRect(float×6) 是 API 21 才有的重载，用 RectF 版兜住低版本 */
+    private val barRect = RectF()
+
     fun setSatellites(list: List<SatInfo>) {
         sats = list
         requestLayout()
@@ -84,17 +88,13 @@ class SatelliteBarsView @JvmOverloads constructor(
             drawCenter(canvas, prn(s), tagWidth, cy, text)
 
             val barTop = cy - barHeight / 2f
-            canvas.drawRoundRect(
-                barLeft, barTop, barRight, barTop + barHeight,
-                barHeight / 2f, barHeight / 2f, barBg
-            )
+            barRect.set(barLeft, barTop, barRight, barTop + barHeight)
+            canvas.drawRoundRect(barRect, barHeight / 2f, barHeight / 2f, barBg)
             val ratio = (s.cn0 / 50f).coerceIn(0f, 1f)
             if (ratio > 0f) {
                 small.color = color
-                canvas.drawRoundRect(
-                    barLeft, barTop, barLeft + (barRight - barLeft) * ratio,
-                    barTop + barHeight, barHeight / 2f, barHeight / 2f, small
-                )
+                barRect.right = barLeft + (barRight - barLeft) * ratio
+                canvas.drawRoundRect(barRect, barHeight / 2f, barHeight / 2f, small)
             }
 
             small.color = if (s.usedInFix) 0xFF111318.toInt() else 0xFF9AA4B2.toInt()

@@ -9,10 +9,15 @@ android {
 
     defaultConfig {
         applicationId = "top.wxip.gpslink"
-        minSdk = 26
+        minSdk = 19
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.2.5"
+        versionCode = 16
+        versionName = "1.2.6"
+        // API 19/20 不会自动分包，appcompat+material 方法数可能超 64K，必须开启并走 legacy multidex
+        multiDexEnabled = true
+        // minSdk<21 时 AGP 会尝试把矢量图转 PNG，遇到 @color 引用会失败；
+        // 交给 AppCompat 运行时渲染矢量图
+        vectorDrawables.useSupportLibrary = true
     }
 
     // Release 签名。未签名的 APK 无法安装（系统会报"安装包异常/解析失败"）。
@@ -63,6 +68,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation("androidx.multidex:multidex:2.0.1")
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
