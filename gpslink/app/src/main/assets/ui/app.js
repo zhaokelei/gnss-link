@@ -307,73 +307,238 @@ function flagIcon(name) {
   svg.append(use);
   return svg;
 }
+/* ==================== 天空图（Canvas 极坐标） ==================== */
+let lastSats = [];
+
+function drawSky(sats) {
+  const canvas = $("sky");
+  if (!canvas || !canvas.parentElement) return;
+  const size = Math.round(canvas.clientWidth || canvas.parentElement.clientWidth);
+  if (!size) return;
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, size, size);
+
+  const css = getComputedStyle(document.documentElement);
+  const ink = css.getPropertyValue("--label-2").trim() || "#586c86";
+  const tint = css.getPropertyValue("--tint").trim() || "#2f6fed";
+  const line = css.getPropertyValue("--separator").trim() || "rgba(41,78,121,0.11)";
+  const font = 'Roboto, "Noto Sans", system-ui, sans-serif';
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const R = size / 2 - 16;
+
+  // 圆内一层极淡的向心渐变，中心略亮
+  const veil = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+  veil.addColorStop(0, "rgba(47,111,237,0.10)");
+  veil.addColorStop(1, "rgba(47,111,237,0.01)");
+  ctx.fillStyle = veil;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 仰角同心环：0° / 30° / 60°
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 1;
+  [1, 2 / 3, 1 / 3].forEach((k) => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * k, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // 每 30° 一条放射线
+  for (let deg = 0; deg < 360; deg += 30) {
+    const a = (deg * Math.PI) / 180;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.sin(a) * R, cy - Math.cos(a) * R);
+    ctx.stroke();
+  }
+
+  // 四方位 + 间隔度数
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = ink;
+  ctx.font = `600 11px ${font}`;
+  [
+    ["N", 0],
+    ["E", 90],
+    ["S", 180],
+    ["W", 270],
+  ].forEach(([label, deg]) => {
+    const a = (deg * Math.PI) / 180;
+    ctx.fillText(
+      label,
+      cx + Math.sin(a) * (R + 10),
+      cy - Math.cos(a) * (R + 10),
+    );
+  });
+  ctx.font = `500 9px ${font}`;
+  ctx.globalAlpha = 0.75;
+  [30, 60, 120, 150, 210, 240, 300, 330].forEach((deg) => {
+    const a = (deg * Math.PI) / 180;
+    ctx.fillText(
+      String(deg),
+      cx + Math.sin(a) * (R + 10),
+      cy - Math.cos(a) * (R + 10),
+    );
+  });
+  ctx.globalAlpha = 1;
+
+  // 卫星点：半径=仰角，角度=方位角，点径分三档映射 C/N0
+  const dots = sats.map((sat) => {
+    const rr = ((90 - sat.ele) / 90) * R;
+    const a = (sat.azi * Math.PI) / 180;
+    const big = sat.cno >= 35;
+    const mid = sat.cno >= 25;
+    return {
+      sat,
+      x: cx + Math.sin(a) * rr,
+      y: cy - Math.cos(a) * rr,
+      big,
+      rad: big ? 7.6 : mid ? 6 : 4.4,
+    };
+  });
+
+  dots.forEach(({ sat, x, y, rad }) => {
+
+    // 球体质感：左上偏亮，右下收暗
+    const grad = ctx.createRadialGradient(
+      x - rad * 0.35,
+      y - rad * 0.35,
+      rad * 0.15,
+      x,
+      y,
+      rad,
+    );
+    if (sat.used) {
+      grad.addColorStop(0, "rgba(255,255,255,0.95)");
+      grad.addColorStop(0.38, tint);
+      grad.addColorStop(1, tint);
+    } else {
+      grad.addColorStop(0, "rgba(255,255,255,0.8)");
+      grad.addColorStop(0.4, "#9aa9bd");
+      grad.addColorStop(1, "#7d8ca1");
+    }
+    ctx.save();
+    if (sat.used) {
+      ctx.shadowColor = tint;
+      ctx.shadowBlur = 10;
+    }
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // PRN 沿"点相对圆心"的方向外推标注，冲突就换到反侧，再冲突才跳过
+  const placed = [];
+  const hit = (box) =>
+    placed.some(
+      (p) =>
+        !(
+          box.x + box.w < p.x ||
+          box.x > p.x + p.w ||
+          box.y + box.h < p.y ||
+          box.y > p.y + p.h
+        ),
+    );
+
+  dots
+    .filter((d) => d.big)
+    .sort((a, b) => b.sat.cno - a.sat.cno)
+    .forEach(({ sat, x, y }) => {
+      const text = String(sat.prn);
+      ctx.font = `600 9px ${font}`;
+      const w = ctx.measureText(text).width + 8;
+      const h = 12;
+      const box = { x: x - w / 2, y: y - h / 2, w: w, h: h };
+      if (hit(box)) return;
+      placed.push(box);
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "rgba(8,20,38,0.5)";
+      ctx.strokeText(text, x, y + 0.5);
+      ctx.fillStyle = "#fff";
+      ctx.fillText(text, x, y + 0.5);
+    });
+}
+
+/* ==================== 信号柱（横向玻璃管） ==================== */
+function buildTubes(sats) {
+  const host = $("sat-bars");
+  if (!host) return;
+  host.replaceChildren();
+  host.scrollLeft = 0;
+
+  sats.forEach((sat) => {
+    const item = document.createElement("div");
+    item.className =
+      `tube-item${sat.used ? " used" : ""}${sat.cno < 25 ? " weak" : ""}`;
+
+    const tube = document.createElement("div");
+    tube.className = "tube";
+    const fill = document.createElement("i");
+    fill.className = "fill";
+    fill.style.height = `${Math.max(4, Math.min(100, (sat.cno / 50) * 100))}%`;
+    tube.append(fill);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const cno = document.createElement("b");
+    cno.textContent = number(sat.cno, 0);
+    const flag = flagIcon(sat.sys);
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.textContent = sat.sig || "—";
+    if (!sat.sig) pill.style.visibility = "hidden";
+    const prn = document.createElement("em");
+    prn.textContent = sat.prn;
+
+    meta.append(cno, flag, pill, prn);
+    item.append(tube, meta);
+    host.append(item);
+  });
+}
+
 function renderSatellites(payload) {
   const { items, source } = payload;
   $("sat-source").textContent = source;
   $("sat-count").textContent =
     `可见 ${items.length} · 定位 ${items.filter((s) => s.used).length}`;
-  $("sky")
-    .querySelectorAll(".sky-dot")
-    .forEach((n) => n.remove());
-  $("sky").querySelector(".sky-empty").hidden = items.length > 0;
+  $("sky-empty").hidden = items.length > 0;
   $("sat-hint").textContent = items.length
     ? satMode === "list"
       ? "蓝色为参与定位的卫星，信号强度单位为 dB-Hz。"
-      : "蓝色为参与定位的卫星，圆盘按方位角与高度角摆放。"
+      : "圆盘中心为天顶，外圈为地平线；点越大信号越强。"
     : "开启系统定位，到室外或窗边接收信号。";
-  $("sat-bars").replaceChildren();
+
+  // 统一成布局用的字段，数据来源仍是原生推上来的那份
+  const sats = items.map((sat) => ({
+    prn: sat.svid,
+    sys: sat.name,
+    sig: sat.band && sat.band !== "—" ? sat.band : "",
+    cno: sat.cn0,
+    azi: sat.azimuth,
+    ele: sat.elevation,
+    used: !!sat.used,
+  }));
+  lastSats = sats;
+
+  drawSky(sats);
+  buildTubes(sats);
+
   const table = $("sat-table");
   table.replaceChildren();
 
   for (const sat of items) {
     const band = sat.band && sat.band !== "—" ? sat.band : "";
-    const angle = (sat.azimuth * Math.PI) / 180,
-      radius = ((90 - sat.elevation) / 90) * 44;
-
-    // 圆盘点：编号 + 频段
-    const dot = document.createElement("span");
-    dot.className = `sky-dot${sat.used ? " used" : ""}`;
-    const svidText = document.createElement("b");
-    svidText.textContent = sat.svid;
-    dot.append(svidText);
-    if (band) {
-      const bandText = document.createElement("i");
-      bandText.textContent = band;
-      dot.append(bandText);
-    }
-    dot.style.left = `${50 + Math.sin(angle) * radius}%`;
-    dot.style.top = `${50 - Math.cos(angle) * radius}%`;
-    dot.title = `${sat.name} ${sat.svid}${band ? ` · ${band}` : ""} · ${number(sat.cn0)} dB-Hz`;
-    $("sky").append(dot);
-
-    // 柱状图：编号 + 频段
-    const bar = document.createElement("div");
-    bar.className = `sat-bar${sat.used ? " used" : ""}`;
-    const strength = document.createElement("span");
-    strength.textContent = number(sat.cn0, 0);
-    const column = document.createElement("i");
-    column.style.height = `${Math.max(4, Math.min(50, sat.cn0) * 0.8)}px`;
-    const label = document.createElement("span");
-    label.className = "sat-label";
-    const flag = flagIcon(sat.name);
-    const identifier = document.createElement("span");
-    identifier.textContent = sat.svid;
-    label.append(flag, identifier);
-    if (band) {
-      const bandTag = document.createElement("span");
-      bandTag.className = "sat-band-tag";
-      bandTag.textContent = band;
-      label.append(bandTag);
-    }
-    bar.title = `${sat.name} ${sat.svid}${band ? ` · ${band}` : ""} · ${number(sat.cn0)} dB-Hz`;
-    bar.setAttribute("role", "img");
-    bar.setAttribute(
-      "aria-label",
-      `${sat.name}卫星 ${sat.svid}${band ? `，频段 ${band}` : ""}，信号强度 ${number(sat.cn0)} dB-Hz${sat.used ? "，参与定位" : ""}`,
-    );
-    bar.append(strength, column, label);
-    $("sat-bars").append(bar);
-
 
     // 列表行
     const row = document.createElement("div");
@@ -489,10 +654,65 @@ function applySatMode(mode) {
   $("sat-view-sky").hidden = isList;
   $("sat-view-list").hidden = !isList;
   localStorage.setItem("satMode", mode);
+  $("sat-hint").textContent = lastSats.length
+    ? isList
+      ? "蓝色为参与定位的卫星，信号强度单位为 dB-Hz。"
+      : "圆盘中心为天顶，外圈为地平线；点越大信号越强。"
+    : "开启系统定位，到室外或窗边接收信号。";
+  // 隐藏时画布量不到宽度，切回来按当前尺寸重绘一次
+  if (!isList) requestAnimationFrame(() => drawSky(lastSats));
 }
 $("sat-mode").addEventListener("click", (event) => {
   const btn = event.target.closest("button[data-value]");
   if (btn) applySatMode(btn.dataset.value);
+});
+
+/* 信号柱横向滑动：鼠标按住拖拽、滚轮竖转横；触摸保留原生惯性 */
+(function bindTubeRail() {
+  const rail = $("sat-bars");
+  if (!rail) return;
+  let dragging = false;
+  let startX = 0;
+  let startLeft = 0;
+
+  rail.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse") return;
+    dragging = true;
+    startX = event.clientX;
+    startLeft = rail.scrollLeft;
+    rail.classList.add("grabbing");
+  });
+
+  window.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    rail.scrollLeft = startLeft - (event.clientX - startX);
+  });
+
+  window.addEventListener("pointerup", () => {
+    if (!dragging) return;
+    dragging = false;
+    rail.classList.remove("grabbing");
+  });
+
+  rail.addEventListener(
+    "wheel",
+    (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      const atStart = rail.scrollLeft <= 0 && event.deltaY < 0;
+      const atEnd =
+        rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1 &&
+        event.deltaY > 0;
+      // 滑到头就把滚动交回页面
+      if (atStart || atEnd) return;
+      rail.scrollLeft += event.deltaY;
+      event.preventDefault();
+    },
+    { passive: false },
+  );
+})();
+
+window.addEventListener("resize", () => {
+  if (satMode === "sky") drawSky(lastSats);
 });
 applySatMode(localStorage.getItem("satMode") === "list" ? "list" : "sky");
 

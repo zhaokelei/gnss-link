@@ -483,35 +483,17 @@ output {
   color: var(--label-2);
   font-weight: 400;
 }
-.sky {
+/* 天空图：Canvas 极坐标，半径=仰角，角度=方位角 */
+.sky-stage {
   position: relative;
-  width: min(280px, 85%);
+  width: min(258px, 80%);
   aspect-ratio: 1;
-  margin: 48px auto 30px;
-  border-radius: 50%;
-  border: 1px solid var(--separator);
-  background:
-    repeating-radial-gradient(
-      circle,
-      transparent 0,
-      transparent calc(25% - 1px),
-      var(--separator) 25%,
-      transparent calc(25% + 1px)
-    ),
-    linear-gradient(
-      90deg,
-      transparent 49.8%,
-      var(--separator) 50%,
-      transparent 50.2%
-    ),
-    linear-gradient(transparent 49.8%, var(--separator) 50%, transparent 50.2%);
+  margin: 4px auto 0;
 }
-.north {
-  position: absolute;
-  top: -19px;
-  left: calc(50% - 6px);
-  font-size: 12px;
-  color: var(--label-2);
+.sky-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .sky-empty {
   position: absolute;
@@ -521,61 +503,108 @@ output {
   color: var(--label-2);
   font-size: 13px;
 }
-.sky-dot {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--label-2);
-  display: grid;
-  place-items: center;
-  font-size: 10px;
-  border: 1px solid var(--line);
+/* 信号柱：单行横向排列，卡片内通栏，两端渐隐提示还有内容 */
+.tube-rail {
+  margin: 6px -24px 0;
 }
-.sky-dot.used {
-  background: var(--tint);
-  color: white;
+.tube-rail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 24px 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--label-2);
 }
 .sat-bars {
   display: flex;
   align-items: flex-end;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px 0;
-  padding: 8px 0 2px;
-  margin-bottom: 10px;
+  gap: 10px;
+  padding: 2px 24px 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  cursor: grab;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 18px,
+    #000 calc(100% - 18px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 18px,
+    #000 calc(100% - 18px),
+    transparent 100%
+  );
 }
-.sat-bar {
+.sat-bars::-webkit-scrollbar {
+  display: none;
+}
+.sat-bars.grabbing {
+  cursor: grabbing;
+}
+.tube-item {
+  flex: 0 0 44px;
+  scroll-snap-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 28px;
-  min-width: 28px;
-  flex: 0 0 28px;
-  text-align: center;
-  font-size: 9px;
+  gap: 5px;
+}
+/* 玻璃管：只有管壁，内部一条自底向上的填充 */
+.tube {
+  position: relative;
+  width: 34px;
+  height: 96px;
+  border-radius: 16px;
+  border: 1px solid var(--separator);
+  background: var(--surface-2);
+  box-shadow: inset 0 1px 0 var(--line);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+.fill {
+  display: block;
+  width: 100%;
+  border-radius: 16px;
+  background: #8fa2ba73;
+  transition: height 0.35s ease;
+}
+.tube-item.used .fill {
+  background: linear-gradient(180deg, var(--tint), var(--dock-ink));
+  box-shadow: 0 0 12px -2px var(--tint);
+}
+.tube-item.weak:not(.used) .fill {
+  background: #8fa2ba3d;
+}
+/* 柱子下方四行：载噪比 / 国旗 / 制式 / PRN */
+.meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 9.5px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
   color: var(--label-2);
 }
-.sat-bar > span {
-  display: block;
-  height: 15px;
-  line-height: 15px;
-  white-space: nowrap;
+.meta b {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--label-2);
 }
-.sat-bar > .sat-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 42px;
-  line-height: 14px;
-  font-variant-numeric: tabular-nums;
+.tube-item.used .meta b {
+  color: var(--tint-strong);
 }
-.sat-label > span {
-  display: block;
-  height: 20px;
-  white-space: nowrap;
+.meta em {
+  font-style: normal;
+  font-size: 10px;
 }
 /* 国旗用内联 SVG，尺寸固定，不依赖系统 Emoji 字体 */
 .sat-flag {
@@ -593,16 +622,24 @@ output {
   flex: 0 0 26px;
   width: 26px;
 }
-.sat-bar i {
-  display: block;
-  width: 18px;
-  flex-shrink: 0;
-  background: #7492b366;
-  border-radius: 5px 5px 0 0;
-  margin: 5px 0;
+/* 柱状图里的国旗小一号，和 46px 列宽匹配 */
+.meta .sat-flag {
+  width: 20px;
+  height: 13px;
 }
-.sat-bar.used i {
+/* 制式胶囊 */
+.pill {
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--label-2);
+  white-space: nowrap;
+}
+.tube-item.used .pill {
   background: var(--tint);
+  color: #fff;
 }
 #page-satellites > .surface {
   margin-bottom: 20px;
@@ -647,16 +684,17 @@ output {
     padding: 16px 18px 112px;
   }
   .top-toolbar {
-    margin-bottom: 26px;
+    margin-bottom: 12px;
   }
   .page-heading {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
   }
   h1 {
     font-size: 25px;
   }
   .page-heading p {
-    font-size: 12px;
+    font-size: 11px;
+    margin-top: 1px;
   }
   .workspace,
   .settings-grid {
@@ -1149,46 +1187,6 @@ html.modal-open body {
 .sat-modes button {
   min-height: 40px;
   font-size: 13px;
-}
-
-/* 圆盘上的卫星点：编号 + 频段 */
-.sky-dot {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  line-height: 1;
-}
-.sky-dot b {
-  font-size: 10px;
-  font-weight: 600;
-}
-.sky-dot i {
-  font-style: normal;
-  font-size: 8px;
-  letter-spacing: -0.2px;
-  opacity: 0.85;
-}
-
-
-/* 柱状图里的国旗比列表里小一号，保证 11 个能排一行 */
-.sat-label .sat-flag {
-  width: 22px;
-  flex: 0 0 22px;
-}
-
-/* 柱状图标签里的频段小字 */
-.sat-band-tag {
-  font-size: 8.5px;
-  color: var(--tint-strong);
-  font-weight: 600;
-}
-.sat-bar.used .sat-band-tag {
-  color: #fff;
-  opacity: 0.9;
 }
 
 /* ==================== 卫星：列表明细 ==================== */

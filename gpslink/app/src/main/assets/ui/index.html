@@ -280,11 +280,17 @@
               <button data-value="list" aria-selected="false" aria-pressed="false">列表明细</button>
             </div>
             <div id="sat-view-sky">
-              <div class="sky" id="sky">
-                <span class="north">北</span>
-                <div class="sky-empty">等待卫星数据</div>
+              <div class="sky-stage">
+                <canvas id="sky" class="sky-canvas"></canvas>
+                <div class="sky-empty" id="sky-empty" hidden>等待卫星数据</div>
               </div>
-              <div id="sat-bars" class="sat-bars"></div>
+              <div class="tube-rail">
+                <div class="tube-rail-head">
+                  <span>信号强度</span>
+                  <span>按住横向拖动查看</span>
+                </div>
+                <div id="sat-bars" class="sat-bars"></div>
+              </div>
             </div>
             <div id="sat-view-list" hidden>
               <div class="sat-table-head">
