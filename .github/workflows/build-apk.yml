@@ -122,6 +122,55 @@ jobs:
               --latest
           fi
 
+      # 每次推送都同步到官网 FTP：APK + 更新日志。车机端的自更新读的就是这里，
+      # 只发 Release 不同步 FTP，线上会一直停在旧版本。
+      # 未配置 FTP_HOST 时跳过，不影响构建与 Release。
+      - name: 同步到官网 FTP
+        if: github.event_name == 'push'
+        working-directory: ./gpslink
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          if [ -z "$FTP_HOST" ]; then
+            echo "未配置 FTP_HOST，跳过官网同步"
+            exit 0
+          fi
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts | head -1)
+          APK="app/build/outputs/apk/release/gnss-link-universal.apk"
+          LOG="../docs/update-log.txt"
+          BASE="ftp://$FTP_USER:$FTP_PASS@$FTP_HOST/download"
+
+          # 更新日志头部版本必须跟上 versionName，否则车机端收不到更新提示
+          if [ -f "$LOG" ]; then
+            HEAD_VER=$(grep -oP '最新版本：\K[0-9.]+' "$LOG" | head -1)
+            if [ "$HEAD_VER" != "$VERSION" ]; then
+              echo "::warning file=docs/update-log.txt::日志头部为 $HEAD_VER，与 versionName $VERSION 不一致，车机端不会提示更新"
+            fi
+          fi
+
+          echo "同步 $VERSION 到 $FTP_HOST"
+          # curl 对 FTP 上传成功返回 226
+          curl -sS --connect-timeout 30 -T "$APK" "$BASE/gnss-link-$VERSION.apk" \
+            -o /dev/null -w "APK 上传: %{http_code}\n"
+
+          if [ -f "$LOG" ]; then
+            curl -sS --connect-timeout 30 -T "$LOG" "$BASE/update-log.txt" \
+              -o /dev/null -w "日志上传: %{http_code}\n"
+          else
+            echo "缺少 docs/update-log.txt，跳过日志同步"
+          fi
+
+          # 回读一遍，确认远端真的存在且体积一致
+          REMOTE=$(curl -sS --connect-timeout 30 -I "$BASE/gnss-link-$VERSION.apk" | grep -i content-length | tr -dc '0-9')
+          LOCAL=$(stat -c %s "$APK")
+          echo "远端 $REMOTE / 本地 $LOCAL"
+          if [ "$REMOTE" != "$LOCAL" ]; then
+            echo "::error::FTP 上的 APK 体积与本地不一致，同步可能失败"
+            exit 1
+          fi
+
   # 在真实 Android 模拟器里安装并截图，用来验证多分辨率与横竖屏排版。
   screenshot:
     # 只在手动触发时执行，push 不再等待模拟器截图

@@ -402,8 +402,11 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     companion object {
         private const val TAG = "GnssLink"
         private const val BASE_URL = "https://gps.iqiq.cn/download"
-        private const val LOG_URL = "$BASE_URL/update-log.txt"
-        private const val UPDATER_UA = "GNSS-Link-Updater/1.2.6"
+
+        // 更新日志走 CDN，固定 URL 会被缓存住导致迟迟收不到新版本提示，
+        // 每次请求带上时间戳，让 CDN 按不同 URL 处理，始终回源。
+        fun logUrl(): String = "$BASE_URL/update-log.txt?t=${System.currentTimeMillis()}"
+        private const val UPDATER_UA = "GNSS-Link-Updater/1.3.0"
 
         /** 精简界面缺失时的纯文本兜底页，不依赖任何脚本/样式 */
         private const val FALLBACK_HTML =
@@ -421,6 +424,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             connectTimeout = 12000
             this.readTimeout = readTimeout
             setRequestProperty("User-Agent", UPDATER_UA)
+            setRequestProperty("Cache-Control", "no-cache")
+            setRequestProperty("Pragma", "no-cache")
             instanceFollowRedirects = true
         }
 
@@ -476,7 +481,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         thread {
             try {
                 // 版本号与安装包名由发布流程写在更新日志头部，这里直接读它
-                val conn = open(LOG_URL)
+                val conn = open(logUrl())
                 if (conn.responseCode != HttpURLConnection.HTTP_OK) return@thread
                 val log = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
@@ -584,7 +589,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private fun fetchUpdateLog() {
         thread {
             try {
-                val conn = open(LOG_URL)
+                val conn = open(logUrl())
                 if (conn.responseCode != HttpURLConnection.HTTP_OK) {
                     throw IllegalStateException("HTTP ${conn.responseCode}")
                 }
