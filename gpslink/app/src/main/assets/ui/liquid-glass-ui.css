@@ -113,7 +113,9 @@
   position: relative;
   pointer-events: auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 页签数量会变，用 auto-flow 均分，别写死列数 */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 2px;
   width: min(416px, 100%);
   padding: 4px;

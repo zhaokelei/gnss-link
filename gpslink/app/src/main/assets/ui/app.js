@@ -41,7 +41,7 @@ function refreshRole() {
     ? "接收另一台手机的定位"
     : "共享此设备的位置";
   $("action-hint").textContent = receive
-    ? "需先把本机设为模拟位置应用。打不开开发者选项时，用设置页提供的 adb 命令。"
+    ? "需先把本机设为模拟位置应用。打不开开发者选项时，用授权页给出的 adb 命令。"
     : "两台设备连接同一 Wi-Fi 或热点，并使用相同房间码。";
   $("start").firstChild.textContent = receive ? "开始接收 " : "开始共享 ";
   $("stop").textContent = receive ? "停止接收" : "停止共享";
@@ -901,7 +901,7 @@ document.querySelectorAll(".modal-mask").forEach((mask) => {
 });
 
 attachLiquidDock(document.querySelector(".bottom-dock"), (index) => {
-  ["link", "satellites", "settings", "about"].forEach(
+  ["link", "satellites", "access", "settings", "about"].forEach(
     (name, i) => ($(`page-${name}`).hidden = i !== Number(index)),
   );
   window.scrollTo(0, 0);

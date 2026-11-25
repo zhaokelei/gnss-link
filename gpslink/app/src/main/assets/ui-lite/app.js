@@ -237,7 +237,7 @@
 
   /* ==================== 页签 ==================== */
 
-  var PAGES = ["link", "satellites", "settings", "about"];
+  var PAGES = ["link", "satellites", "access", "settings", "about"];
 
   function showPage(name) {
     for (var i = 0; i < PAGES.length; i++) {

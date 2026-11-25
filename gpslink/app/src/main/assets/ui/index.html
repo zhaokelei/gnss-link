@@ -28,6 +28,10 @@
             d="m8 8 8 8m-6-13 4 4-4 4-4-4Zm7 7 4 4-4 4-4-4ZM4 13a7 7 0 0 0 7 7m-7-4a3 3 0 0 0 3 3m9-15 4 4"
           />
         </symbol>
+        <symbol id="shield" viewBox="0 0 24 24">
+          <path d="M12 2.6 5 5.8v5.7c0 4.1 2.9 7.3 7 9.2 4.1-1.9 7-5.1 7-9.2V5.8Z" />
+          <path d="m9.2 11.8 2.1 2.1 3.6-3.8" />
+        </symbol>
         <symbol id="settings" viewBox="0 0 24 24">
           <path d="M5 3v18m7-18v18m7-18v18M2 8h6m1 8h6m1-10h6" />
         </symbol>
@@ -310,11 +314,66 @@
             <p id="probe-result">保持室外或窗边，检测约需 12 秒。</p>
           </article>
         </section>
+        <section id="page-access" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <h1>设备授权</h1>
+              <p>模拟位置、后台保活，以及开不了开发者选项时的命令行方案</p>
+            </div>
+          </div>
+          <div class="settings-grid">
+            <article class="surface">
+              <div class="section-head">
+                <h2>授权状态</h2>
+                <button class="lg-btn" id="recheck">重新检查</button>
+              </div>
+              <div class="auth-version">
+                <span id="auth-android">正在识别系统版本…</span>
+                <span class="pill" id="auth-tier">—</span>
+              </div>
+              <div class="check-row">
+                <span>定位权限</span><span id="check-location">待检查</span>
+              </div>
+              <div class="check-row">
+                <span>开发者选项</span><span id="check-dev">待检查</span>
+              </div>
+              <div class="check-row">
+                <span>模拟位置</span><span id="check-mock">待检查</span>
+              </div>
+              <p class="field-note" id="auth-steps">正在检查授权方式…</p>
+              <p class="field-note warn" id="auth-why" hidden></p>
+              <div class="button-row">
+                <button class="lg-btn" id="permissions">授予权限</button
+                ><button class="lg-btn" id="mock">去授权</button>
+              </div>
+              <div class="check-row">
+                <span>后台定位</span><span id="check-background">待检查</span>
+              </div>
+              <button class="lg-btn" id="background">设为始终允许</button>
+              <div class="check-row">
+                <span>后台运行</span><span id="check-battery">待检查</span>
+              </div>
+              <button class="lg-btn" id="battery">设置电池白名单</button>
+            </article>
+            <article class="surface" id="adb-card">
+              <div class="section-head">
+                <h2>命令行授权</h2>
+                <button class="lg-btn" id="copy-adb">复制命令</button>
+              </div>
+              <p class="field-note" id="adb-note">
+                正在按系统版本生成对应命令…
+              </p>
+              <pre class="cmd" id="adb-cmd">adb shell appops set top.wxip.gpslink android:mock_location allow</pre>
+              <p class="field-note">验证是否生效：</p>
+              <pre class="cmd" id="adb-check">adb shell appops get top.wxip.gpslink android:mock_location</pre>
+            </article>
+          </div>
+        </section>
         <section id="page-settings" class="page" hidden>
           <div class="page-heading">
             <div>
               <h1>偏好设置</h1>
-              <p>连接参数、设备授权与轨迹</p>
+              <p>连接参数、界面与轨迹</p>
             </div>
           </div>
           <div class="settings-grid">
@@ -388,51 +447,6 @@
               <label for="tint"
                 >玻璃浓度 <output id="tint-value">35%</output></label
               ><input id="tint" type="range" min="0" max="100" value="35" />
-            </article>
-            <article class="surface">
-              <div class="section-head">
-                <h2>设备授权</h2>
-                <button class="lg-btn" id="recheck">重新检查</button>
-              </div>
-              <div class="auth-version">
-                <span id="auth-android">正在识别系统版本…</span>
-                <span class="pill" id="auth-tier">—</span>
-              </div>
-              <div class="check-row">
-                <span>定位权限</span><span id="check-location">待检查</span>
-              </div>
-              <div class="check-row">
-                <span>开发者选项</span><span id="check-dev">待检查</span>
-              </div>
-              <div class="check-row">
-                <span>模拟位置</span><span id="check-mock">待检查</span>
-              </div>
-              <p class="field-note" id="auth-steps">正在检查授权方式…</p>
-              <p class="field-note warn" id="auth-why" hidden></p>
-              <div class="button-row">
-                <button class="lg-btn" id="permissions">授予权限</button
-                ><button class="lg-btn" id="mock">去授权</button>
-              </div>
-              <div class="check-row">
-                <span>后台定位</span><span id="check-background">待检查</span>
-              </div>
-              <button class="lg-btn" id="background">设为始终允许</button>
-              <div class="check-row">
-                <span>后台运行</span><span id="check-battery">待检查</span>
-              </div>
-              <button class="lg-btn" id="battery">设置电池白名单</button>
-            </article>
-            <article class="surface" id="adb-card">
-              <div class="section-head">
-                <h2>命令行授权</h2>
-                <button class="lg-btn" id="copy-adb">复制命令</button>
-              </div>
-              <p class="field-note" id="adb-note">
-                正在按系统版本生成对应命令…
-              </p>
-              <pre class="cmd" id="adb-cmd">adb shell appops set top.wxip.gpslink android:mock_location allow</pre>
-              <p class="field-note">验证是否生效：</p>
-              <pre class="cmd" id="adb-check">adb shell appops get top.wxip.gpslink android:mock_location</pre>
             </article>
             <article class="surface">
               <div class="section-head">
@@ -643,13 +657,20 @@
           role="tab" class="dock-tab"
           aria-selected="false"
           data-tab="2"
+          aria-controls="page-access"
+        >
+          <svg><use href="#shield" /></svg>授权</button
+        ><button
+          role="tab" class="dock-tab"
+          aria-selected="false"
+          data-tab="3"
           aria-controls="page-settings"
         >
           <svg><use href="#settings" /></svg>设置</button
         ><button
           role="tab" class="dock-tab"
           aria-selected="false"
-          data-tab="3"
+          data-tab="4"
           aria-controls="page-about"
         >
           <svg><use href="#info" /></svg>关于
