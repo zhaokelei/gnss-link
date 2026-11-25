@@ -450,6 +450,53 @@ input:not([type="range"]) {
 .check-row .ok {
   color: #168060 !important;
 }
+/* 授权卡：当前系统版本与授权机制 */
+.auth-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--label-2);
+}
+#auth-tier {
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--tint);
+  color: #fff;
+  white-space: nowrap;
+}
+#auth-tier.legacy {
+  background: var(--surface-2);
+  color: var(--label-2);
+  border: 1px solid var(--separator);
+}
+/* 未授权原因：只用主色强调，不引入新的警示色 */
+.field-note.warn {
+  color: var(--tint-strong);
+  font-weight: 500;
+}
+/* 设置页被裁掉时，把命令行授权卡推上来 */
+#adb-card.emphasis {
+  border-color: var(--tint);
+  box-shadow: 0 0 0 1px var(--tint), 0 14px 34px -20px var(--tint);
+}
+@keyframes adb-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px var(--tint), 0 0 0 0 transparent;
+  }
+  45% {
+    box-shadow: 0 0 0 1px var(--tint), 0 0 0 9px transparent;
+  }
+}
+#adb-card.flash {
+  border-color: var(--tint);
+  animation: adb-flash 900ms ease 2;
+}
 .button-row {
   display: flex;
   flex-wrap: wrap;
@@ -821,9 +868,10 @@ input[type="range"]::-webkit-slider-thumb {
   line-height: 1.7;
   color: var(--label);
   max-height: none;
-  white-space: pre;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  /* 命令必须整条看全，宁可折行也不横向截断 */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 .switch-row {
   display: flex;

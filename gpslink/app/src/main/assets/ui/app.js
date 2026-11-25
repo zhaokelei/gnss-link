@@ -93,6 +93,19 @@ for (const action of [
 ])
   $(action).onclick = () => native(action);
 
+// 设置页被 ROM 裁掉时，这个按钮改为把用户带到下方 adb 命令
+$("mock").onclick = () => {
+  const access = window.__access;
+  if (access && !access.settingsPage) {
+    const card = $("adb-card");
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("flash");
+    setTimeout(() => card.classList.remove("flash"), 1800);
+    return;
+  }
+  native("mock");
+};
+
 function setSwitch(id, on) {
   $(id).setAttribute("aria-checked", String(Boolean(on)));
 }
@@ -141,6 +154,51 @@ const fmtSize = (b) =>
   b >= 1048576
     ? `${(b / 1048576).toFixed(1)} MB`
     : `${Math.max(1, Math.round(b / 1024))} KB`;
+
+/* 授权卡：4.4-5.1 靠系统开关，6.0 起靠 AppOps，文案与命令都由原生按版本给 */
+function renderAccess(data) {
+  window.__access = data;
+  const legacy = data.tier === "legacy";
+
+  $("auth-android").textContent = `${data.androidName} · API ${data.sdk}`;
+  $("auth-tier").textContent = legacy ? "系统开关" : "AppOps 授权";
+  $("auth-tier").classList.toggle("legacy", legacy);
+
+  $("auth-steps").textContent = data.steps;
+
+  const why = $("auth-why");
+  if (data.granted) {
+    why.hidden = true;
+  } else {
+    why.hidden = false;
+    why.textContent = data.settingsPage
+      ? `当前状态：${data.why}`
+      : `当前状态：${data.why}。这台设备的开发者选项页面似乎被移除了，请直接使用下方命令行授权。`;
+  }
+
+  $("check-mock").textContent = data.granted ? "已授权" : "未授权";
+  $("check-mock").classList.toggle("ok", data.granted);
+
+  // 设置页被整页裁掉时，这一行不该再显示「待设置」，那是误导
+  const dev = $("check-dev");
+  if (!data.settingsPage) {
+    dev.textContent = "已移除";
+    dev.classList.remove("ok");
+  }
+
+  $("mock").textContent = !data.settingsPage
+    ? "查看 adb 命令"
+    : legacy
+      ? "打开开发者选项"
+      : "选择模拟位置应用";
+
+  $("adb-cmd").textContent = data.adb;
+  $("adb-check").textContent = data.adbCheck;
+  $("adb-note").textContent = legacy
+    ? "4.4–5.1 只要打开系统开关即可。开发者选项被裁掉时，用下面这条命令直接打开开关，立刻生效。"
+    : "6.0 起声明权限不再管用，必须在 AppOps 里放行。开发者选项被裁掉时，用下面这条命令等效于手动选中本应用，重启不丢。";
+  $("adb-card").classList.toggle("emphasis", !data.settingsPage && !data.granted);
+}
 
 function renderTracks(list) {
   const box = $("track-list");
@@ -617,6 +675,7 @@ window.GnssUI = {
         $(`check-${name}`).textContent = data[name] ? "已就绪" : "待设置";
         $(`check-${name}`).classList.toggle("ok", data[name]);
       }
+    else if (type === "access") renderAccess(data);
     else if (type === "satellites") renderSatellites(data);
     else if (type === "tracks") renderTracks(data);
     else if (type === "log") {

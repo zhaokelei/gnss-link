@@ -215,7 +215,21 @@
     send("permissions");
   };
   $("mock").onclick = function () {
+    var access = window.__access;
+    if (access && access.settingsPage === false) {
+      var card = $("adb-card");
+      if (card && card.scrollIntoView) {
+        card.scrollIntoView();
+      }
+      return;
+    }
     send("mock");
+  };
+
+  $("copy-adb").onclick = function () {
+    send("copy", {
+      text: $("adb-cmd").textContent + "\n" + $("adb-check").textContent
+    });
   };
   $("recheck").onclick = function () {
     send("recheck");
@@ -412,6 +426,43 @@
     }
   }
 
+  /* 授权卡：低版本靠系统开关，高版本靠 AppOps，文案与命令由原生给 */
+  function renderAccess(data) {
+    window.__access = data;
+    var legacy = data.tier === "legacy";
+    $("auth-android").textContent = data.androidName;
+    $("auth-tier").textContent = legacy ? "系统开关" : "AppOps 授权";
+    $("auth-steps").textContent = data.steps;
+
+    var why = $("auth-why");
+    if (data.granted) {
+      why.hidden = true;
+    } else {
+      why.hidden = false;
+      why.textContent = data.settingsPage
+        ? "当前状态：" + data.why
+        : "当前状态：" + data.why + "。本机开发者选项页面可能被移除，请用下方命令授权。";
+    }
+
+    $("check-mock").textContent = data.granted ? "已授权" : "未授权";
+    $("check-mock").style.color = data.granted ? "#1f8a4c" : "";
+
+    $("mock").textContent = data.settingsPage
+      ? (legacy ? "打开开发者选项" : "选择模拟位置应用")
+      : "查看 adb 命令";
+
+    $("adb-cmd").textContent = data.adb;
+    $("adb-check").textContent = data.adbCheck;
+    $("adb-note").textContent = legacy
+      ? "4.4–5.1 只要打开系统开关即可。开发者选项被裁掉时，用下面这条命令直接打开开关。"
+      : "6.0 起声明权限不再管用，必须在 AppOps 里放行。开发者选项被裁掉时，用下面这条命令等效于手动选中本应用。";
+    if (data.settingsPage === false && !data.granted) {
+      $("adb-card").className = "card warn-card";
+    } else {
+      $("adb-card").className = "card";
+    }
+  }
+
   function renderLog(text) {
     var body = $("log-body");
     clear(body);
@@ -554,6 +605,8 @@
         renderStatus(data || {});
       } else if (type === "satellites") {
         renderSatellites(data || {});
+      } else if (type === "access") {
+        renderAccess(data);
       } else if (type === "checks") {
         renderChecks(data || {});
       } else if (type === "log") {

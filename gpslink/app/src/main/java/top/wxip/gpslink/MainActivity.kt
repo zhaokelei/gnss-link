@@ -221,7 +221,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                             withPermission { start(data.optString("role")) }
                         }
                         "stop" -> { SendService.stop(this@MainActivity); ReceiveService.stop(this@MainActivity); LinkBus.reset() }
-                        "mock" -> startActivity(engine.developerOptionsIntent())
+                        "mock" -> if (!engine.openMockSettings())
+                            toast("本机没有可用的设置页，请用「命令行授权」里的 adb 命令授权")
                         "battery" -> requestIgnoreBattery()
                         "background" -> openAppSettings()
                         "permissions" -> withPermission { publishChecks() }
@@ -345,7 +346,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         if (LinkBus.status.running) return toast("请先停止当前任务再回放")
         if (!engine.isSelectedAsMockApp()) {
             publishChecks()
-            return toast("回放需要模拟位置授权，请先在开发者选项或 adb 中授权")
+            return toast("回放需要模拟位置授权：${engine.describe().steps}")
         }
         try {
             ReceiveService.playTrack(this, path)
@@ -386,7 +387,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         if (role == "receiver") {
             if (!engine.isSelectedAsMockApp()) {
                 publishChecks()
-                toast("请在开发者选项中选择 GNSS Link 作为模拟位置应用")
+                toast(engine.describe().steps)
                 return
             }
             ReceiveService.start(this, cfg.port, cfg.sid, Prefs.loadInject(this), useBt)
@@ -772,9 +773,24 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     }
 
     private fun publishChecks() {
-        emit("checks", JSONObject().put("location", hasLocationPermission()).put("dev", engine.isDeveloperOptionsEnabled())
-            .put("mock", engine.isSelectedAsMockApp()).put("battery", isIgnoringBattery())
+        val access = engine.describe()
+        emit("checks", JSONObject().put("location", hasLocationPermission()).put("dev", access.devOptions)
+            .put("mock", access.granted).put("battery", isIgnoringBattery())
             .put("background", hasBackgroundLocation()))
+        // 授权机制按系统版本分档，界面据此显示不同步骤与命令
+        emit("access", JSONObject()
+            .put("sdk", access.sdk)
+            .put("androidName", access.androidName)
+            .put("tier", if (access.tier == MockLocationEngine.Tier.LEGACY) "legacy" else "appops")
+            .put("granted", access.granted)
+            .put("switchOn", access.switchOn)
+            .put("permission", access.permission)
+            .put("devOptions", access.devOptions)
+            .put("settingsPage", access.settingsPage)
+            .put("adb", access.adb)
+            .put("adbCheck", access.adbCheck)
+            .put("steps", access.steps)
+            .put("why", access.why))
     }
 
     /** Android 10 起「始终允许」必须由用户在设置页手动开启，无法用运行时弹窗申请 */

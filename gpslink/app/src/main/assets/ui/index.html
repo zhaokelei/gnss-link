@@ -394,6 +394,10 @@
                 <h2>设备授权</h2>
                 <button class="lg-btn" id="recheck">重新检查</button>
               </div>
+              <div class="auth-version">
+                <span id="auth-android">正在识别系统版本…</span>
+                <span class="pill" id="auth-tier">—</span>
+              </div>
               <div class="check-row">
                 <span>定位权限</span><span id="check-location">待检查</span>
               </div>
@@ -401,14 +405,13 @@
                 <span>开发者选项</span><span id="check-dev">待检查</span>
               </div>
               <div class="check-row">
-                <span>模拟位置应用</span><span id="check-mock">待检查</span>
+                <span>模拟位置</span><span id="check-mock">待检查</span>
               </div>
-              <p class="field-note">
-                接收端需在开发者选项中选择 GNSS Link 作为模拟位置应用。
-              </p>
+              <p class="field-note" id="auth-steps">正在检查授权方式…</p>
+              <p class="field-note warn" id="auth-why" hidden></p>
               <div class="button-row">
                 <button class="lg-btn" id="permissions">授予权限</button
-                ><button class="lg-btn" id="mock">打开开发者选项</button>
+                ><button class="lg-btn" id="mock">去授权</button>
               </div>
               <div class="check-row">
                 <span>后台定位</span><span id="check-background">待检查</span>
@@ -419,14 +422,13 @@
               </div>
               <button class="lg-btn" id="battery">设置电池白名单</button>
             </article>
-            <article class="surface">
+            <article class="surface" id="adb-card">
               <div class="section-head">
                 <h2>命令行授权</h2>
                 <button class="lg-btn" id="copy-adb">复制命令</button>
               </div>
-              <p class="field-note">
-                车机等设备常裁掉「选择模拟位置应用」这一项。用 USB 或无线 adb
-                执行下面这条命令，效果等同手动选中本应用，且重启不丢。
+              <p class="field-note" id="adb-note">
+                正在按系统版本生成对应命令…
               </p>
               <pre class="cmd" id="adb-cmd">adb shell appops set top.wxip.gpslink android:mock_location allow</pre>
               <p class="field-note">验证是否生效：</p>

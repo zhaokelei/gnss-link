@@ -40,8 +40,81 @@ class MockLocationEngine(private val context: Context) {
     private val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private val active = mutableListOf<String>()
 
-    /** 是否已在开发者选项中被选为模拟位置应用 */
-    fun isSelectedAsMockApp(): Boolean = try {
+    /** 授权机制分档：Android 6.0 是分水岭，之前靠系统开关，之后靠 AppOps */
+    enum class Tier { LEGACY, APPOPS }
+
+    /**
+     * 当前设备的授权全貌，一次性交给界面渲染。
+     *
+     * 4.4-5.1 与 6.0+ 是两套完全不同的机制：
+     *  - 低版本：ACCESS_MOCK_LOCATION 是普通权限（装好就有），再加一个
+     *    「允许模拟位置」的系统开关，两者都满足即可。
+     *  - 高版本：权限被改成 signature，声明了也没用，改为 AppOps 里
+     *    「选为模拟位置应用」这一条。
+     */
+    data class Access(
+        val sdk: Int,
+        val androidName: String,
+        val tier: Tier,
+        val granted: Boolean,
+        /** 低版本的系统开关（高版本上该值无意义） */
+        val switchOn: Boolean,
+        /** 是否持有 ACCESS_MOCK_LOCATION，低版本必须，高版本恒为 false */
+        val permission: Boolean,
+        val devOptions: Boolean,
+        /** 系统里还能不能打开那个设置页，false 说明被 ROM 裁掉了 */
+        val settingsPage: Boolean,
+        val adb: String,
+        val adbCheck: String,
+        /** 当前版本该走的具体步骤 */
+        val steps: String,
+        /** 没通过时的直接原因，已通过则为空 */
+        val why: String
+    )
+
+    /** 系统版本号 → 人读的名字，界面直接显示，省得前端再维护一份映射 */
+    private fun androidName(sdk: Int): String = when {
+        sdk <= 19 -> "Android 4.4"
+        sdk == 20 -> "Android 4.4W"
+        sdk == 21 -> "Android 5.0"
+        sdk == 22 -> "Android 5.1"
+        sdk == 23 -> "Android 6.0"
+        sdk == 24 -> "Android 7.0"
+        sdk == 25 -> "Android 7.1"
+        sdk == 26 -> "Android 8.0"
+        sdk == 27 -> "Android 8.1"
+        sdk == 28 -> "Android 9"
+        sdk == 29 -> "Android 10"
+        sdk == 30 -> "Android 11"
+        sdk == 31 -> "Android 12"
+        sdk == 32 -> "Android 12L"
+        sdk == 33 -> "Android 13"
+        sdk == 34 -> "Android 14"
+        sdk == 35 -> "Android 15"
+        else -> "Android ${sdk}"
+    }
+
+    /** 低版本的「允许模拟位置」系统开关。高版本上这个键已废弃，恒为 0 */
+    private fun legacySwitchOn(): Boolean = try {
+        @Suppress("DEPRECATION")
+        Settings.Secure.getInt(
+            context.contentResolver,
+            Settings.Secure.ALLOW_MOCK_LOCATION, 0
+        ) == 1
+    } catch (t: Throwable) {
+        false
+    }
+
+    private fun holdsMockPermission(): Boolean = try {
+        // 该常量在新版 SDK 里被标为 @hide，只能写字符串；低版本上它仍是普通权限
+        context.checkCallingOrSelfPermission("android.permission.ACCESS_MOCK_LOCATION") ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+    } catch (t: Throwable) {
+        false
+    }
+
+    /** AppOps 里是否放行 mock_location，仅 6.0+ 有意义 */
+    private fun appOpsAllowed(): Boolean = try {
         val ops = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ops.unsafeCheckOpNoThrow(
@@ -63,6 +136,14 @@ class MockLocationEngine(private val context: Context) {
         false
     }
 
+    /** 是否已获得注入所需的一切授权 */
+    fun isSelectedAsMockApp(): Boolean =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            legacySwitchOn() && holdsMockPermission()
+        } else {
+            appOpsAllowed()
+        }
+
     /** 开发者选项总开关是否打开，用于给出更准确的提示 */
     fun isDeveloperOptionsEnabled(): Boolean = try {
         Settings.Global.getInt(
@@ -73,6 +154,92 @@ class MockLocationEngine(private val context: Context) {
         false
     }
 
+    /** 系统里是否还存在「开发者选项」这个页面，车机常把它整页裁掉 */
+    fun canOpenMockSettings(): Boolean = try {
+        context.packageManager.resolveActivity(
+            Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS), 0
+        ) != null
+    } catch (t: Throwable) {
+        false
+    }
+
+    fun describe(): Access {
+        val sdk = Build.VERSION.SDK_INT
+        val legacy = sdk < Build.VERSION_CODES.M
+        val sw = legacySwitchOn()
+        val perm = holdsMockPermission()
+        val ops = appOpsAllowed()
+        val granted = if (legacy) (sw && perm) else ops
+        val dev = isDeveloperOptionsEnabled()
+        val page = canOpenMockSettings()
+        val pkg = context.packageName
+
+        val adb = if (legacy)
+            "adb shell settings put secure mock_location 1"
+        else
+            "adb shell appops set $pkg android:mock_location allow"
+        val adbCheck = if (legacy)
+            "adb shell settings get secure mock_location"
+        else
+            "adb shell appops get $pkg android:mock_location"
+
+        val steps = when {
+            legacy ->
+                "设置 → 开发者选项 → 勾选「允许模拟位置」。本应用已声明该权限，勾上即生效，不需要选择应用。"
+            sdk <= Build.VERSION_CODES.R ->
+                "设置 → 开发者选项 → 选择模拟位置信息应用 → 选中「${appLabel()}」。"
+            else ->
+                "设置 → 系统 → 开发者选项 → 选择模拟位置信息应用 → 选中「${appLabel()}」。"
+        }
+
+        val why = when {
+            granted -> ""
+            legacy && !perm -> "清单未声明 ACCESS_MOCK_LOCATION"
+            legacy && !sw -> "系统未开启「允许模拟位置」"
+            !legacy && !ops -> "未被选为模拟位置应用"
+            else -> "授权状态未知"
+        }
+
+        return Access(
+            sdk = sdk,
+            androidName = androidName(sdk),
+            tier = if (legacy) Tier.LEGACY else Tier.APPOPS,
+            granted = granted,
+            switchOn = sw,
+            permission = perm,
+            devOptions = dev,
+            settingsPage = page,
+            adb = adb,
+            adbCheck = adbCheck,
+            steps = steps,
+            why = why
+        )
+    }
+
+    /**
+     * 打开模拟位置授权页面。
+     *
+     * 优先开发者选项；被裁掉时退到系统设置首页，再不行返回 false，
+     * 由界面直接引导用户走 adb。
+     */
+    fun openMockSettings(): Boolean {
+        val targets = listOf(
+            Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+        for (intent in targets) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                return true
+            } catch (t: Throwable) {
+                Log.w(TAG, "open settings failed: ${intent.action}", t)
+            }
+        }
+        return false
+    }
+
+    @Deprecated("改用 openMockSettings()，它会带回退")
     fun developerOptionsIntent(): Intent =
         Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

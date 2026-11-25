@@ -309,15 +309,29 @@
             <div class="card">
               <div class="card-head">
                 <h2>设备授权</h2>
-              </div>
-              <div class="kv"><span>定位权限</span><b id="check-location">待检查</b></div>
-              <div class="kv"><span>模拟位置应用</span><b id="check-mock">待检查</b></div>
-              <div class="btn-row">
-                <button type="button" class="btn small" id="permissions">授予权限</button>
-                <button type="button" class="btn small" id="mock">开发者选项</button>
                 <button type="button" class="btn small" id="recheck">重新检查</button>
               </div>
-              <p class="hint">接收端需把 GNSS Link 设为模拟位置应用。</p>
+              <div class="kv"><span>系统版本</span><b id="auth-android">检测中</b></div>
+              <div class="kv"><span>授权方式</span><b id="auth-tier">检测中</b></div>
+              <div class="kv"><span>定位权限</span><b id="check-location">待检查</b></div>
+              <div class="kv"><span>模拟位置</span><b id="check-mock">待检查</b></div>
+              <p class="hint" id="auth-steps">正在检测授权方式…</p>
+              <p class="hint warn" id="auth-why" hidden></p>
+              <div class="btn-row">
+                <button type="button" class="btn small" id="permissions">授予权限</button>
+                <button type="button" class="btn small" id="mock">去授权</button>
+              </div>
+            </div>
+
+            <div class="card" id="adb-card">
+              <div class="card-head">
+                <h2>命令行授权</h2>
+                <button type="button" class="btn small" id="copy-adb">复制</button>
+              </div>
+              <p class="hint" id="adb-note">正在按系统版本生成命令…</p>
+              <pre class="cmd" id="adb-cmd">adb shell appops set top.wxip.gpslink android:mock_location allow</pre>
+              <p class="hint">验证是否生效：</p>
+              <pre class="cmd" id="adb-check">adb shell appops get top.wxip.gpslink android:mock_location</pre>
             </div>
 
             <div class="card">

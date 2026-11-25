@@ -306,6 +306,32 @@ input[disabled] {
   margin-top: 2px;
 }
 
+/* 未授权原因：用主色强调，不引入额外警示色 */
+.hint.warn {
+  color: #2f6fed;
+  font-weight: bold;
+}
+
+/* 命令行块 */
+.cmd {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #f2f6fc;
+  border: 1px solid #d3e0f0;
+  border-radius: 10px;
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 设置页被裁掉时把命令卡顶出来 */
+.card.warn-card {
+  border-color: #2f6fed;
+  box-shadow: 0 0 0 1px #2f6fed;
+}
+
 .note {
   margin: 8px 0 0;
   color: #3c5574;
