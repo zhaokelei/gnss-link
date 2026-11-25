@@ -34,3 +34,6 @@ desktop.ini
 
 # 本地渲染截图
 preview/
+
+# 本地凭据，不进仓库
+ftp.MD
