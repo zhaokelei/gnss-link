@@ -3,6 +3,10 @@
 
     <!-- 卡片：与 Web 版一致的厚度与圆角，靠 @color 自动适配深色 -->
     <style name="GnssCard">
+        <!-- 这两个尺寸必须写在 style 里：使用处只写 style="@style/GnssCard"，
+             缺了会在 inflate 阶段直接抛 "You must supply a layout_width" -->
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
         <item name="android:background">@drawable/bg_card</item>
         <item name="android:padding">@dimen/card_pad</item>
         <item name="android:layout_marginBottom">@dimen/card_gap</item>
@@ -29,6 +33,8 @@
     </style>
 
     <style name="GnssLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textSize">13sp</item>
         <item name="android:layout_marginTop">14dp</item>
@@ -92,6 +98,8 @@
     </style>
 
     <style name="GnssDockLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textSize">11sp</item>
         <item name="android:layout_marginTop">3dp</item>

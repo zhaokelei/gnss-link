@@ -11,8 +11,8 @@ android {
         applicationId = "top.wxip.gpslink"
         minSdk = 19
         targetSdk = 34
-        versionCode = 24
-        versionName = "1.3.6"
+        versionCode = 25
+        versionName = "1.3.7"
         // API 19/20 不会自动分包，appcompat+material 方法数可能超 64K，必须开启并走 legacy multidex
         multiDexEnabled = true
         // minSdk<21 时 AGP 会尝试把矢量图转 PNG，遇到 @color 引用会失败；
@@ -31,6 +31,10 @@ android {
             keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "gpslink"
             keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: "gpslink2026"
         }
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 
     buildTypes {
@@ -73,4 +77,6 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.lifecycle.service)
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.11.1")
 }

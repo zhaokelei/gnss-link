@@ -1,6 +1,6 @@
 # GNSS Link — 局域网 GPS 共享 / 模拟定位
 
-## 当前版本 1.3.6
+## 当前版本 1.3.7
 
 面向车机与无人值守场景，主要能力：
 
@@ -15,12 +15,12 @@
 
 卫星页提供圆盘方位与列表明细两种视图。圆盘按方位角与高度角摆放，盘外标出方位刻度，参与定位的卫星标出编号并按信号强弱区分大小；下方信号柱横向排列，可拖动查看全部卫星，每列给出载噪比、国旗、制式与编号。禁用双指与双击缩放，固定页面缩放比例。
 
-界面采用本地 WebView，分为连接、卫星、授权、设置、关于五页。支持深浅色主题、玻璃浓度、弹簧水滴按钮与按需 RGB 边缘折射。所有页面资源随 APK 提供，无需联网加载界面。
+界面为原生实现，分为连接、卫星、授权、设置、关于五页，底部五等分导航。支持深浅色主题，控件全部由应用自绘，不依赖系统默认外观。
 
-- 原生入口为 `gpslink/app/src/main/java/top/wxip/gpslink/MainActivity.kt`，负责 WebView 桥接、权限、蓝牙选择与服务调用。
-- 界面源码在 `gpslink/app/src/main/assets/ui/`。`liquid-dock.mjs`、`refraction.js` 和基础样式复用工作区 UI 技能包 v1.1。
+- 入口为 `gpslink/app/src/main/java/top/wxip/gpslink/MainActivity.kt`，负责界面渲染、权限、蓝牙选择与服务调用。
+- 界面布局在 `gpslink/app/src/main/res/layout/`，卡片与控件背景在 `res/drawable/`，配色与主题在 `res/values/` 与 `res/values-night/`。
 - 发送与接收服务沿用现有实现。共享端和接收端均使用此 APK，在连接页选择角色。
-- 浏览器已检查窄屏、深浅色、底栏平齐、按压溢出、归位滤镜卸载及减少动态。真机外观、定位共享、地图联动与性能由用户安装后验收。
+- 布局用 weight 与 ScrollView 自适应，横竖屏切换不重建界面。真机外观、定位共享、地图联动与性能由用户安装后验收。
 - 本地签名密钥在 `gpslink/keys/local-release.jks`，口令配置在被 Git 忽略的 `gpslink/keystore.properties`。后续覆盖升级需沿用该密钥。
 
 
