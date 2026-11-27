@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  连接页 · 横屏双栏。
+  车机与手机横屏下宽度充裕、高度紧张，单栏纵向排布需要大量滚动。
+  这里改为左栏「操作 + 链路」、右栏「定位数据 + 采样 + 日志」，
+  一屏内即可看完关键信息，减少行车时的滚动操作。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:paddingLeft="@dimen/page_pad"
+    android:paddingTop="16dp"
+    android:paddingRight="@dimen/page_pad"
+    android:paddingBottom="@dimen/dock_bottom">
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/GnssPageTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/page_link_title" />
+
+            <TextView
+                style="@style/GnssPageSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/page_link_subtitle" />
+
+            <RadioGroup
+                android:id="@+id/role"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/seg_height"
+                android:layout_marginBottom="14dp"
+                android:background="@drawable/bg_segment"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <RadioButton
+                    android:id="@+id/role_send"
+                    style="@style/GnssSeg"
+                    android:checked="true"
+                    android:text="@string/role_send" />
+
+                <RadioButton
+                    android:id="@+id/role_receive"
+                    style="@style/GnssSeg"
+                    android:text="@string/role_receive" />
+            </RadioGroup>
+
+            <Button
+                android:id="@+id/btn_scan"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginBottom="14dp"
+                android:text="扫码连接共享端" />
+
+            <LinearLayout style="@style/GnssCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/action_title"
+                        style="@style/GnssValue"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/role_desc_title" />
+
+                    <TextView
+                        android:id="@+id/state_badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_tag_idle"
+                        android:paddingLeft="10dp"
+                        android:paddingTop="4dp"
+                        android:paddingRight="10dp"
+                        android:paddingBottom="4dp"
+                        android:text="未运行"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/caption_text" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/action_hint"
+                    style="@style/GnssHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/role_desc" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/start"
+                        style="@style/GnssBtnPrimary"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/touch_min"
+                        android:layout_weight="1"
+                        android:text="@string/btn_send" />
+
+                    <Button
+                        android:id="@+id/stop"
+                        style="@style/GnssBtn"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/touch_min"
+                        android:layout_marginLeft="10dp"
+                        android:layout_weight="0.55"
+                        android:enabled="false"
+                        android:text="停止" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/qr_card"
+                style="@style/GnssCard"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="扫码连接" />
+
+                <TextView
+                    style="@style/GnssHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="让另一台设备用本应用的「扫码连接」对准下方二维码，即可自动填好地址并开始接收。" />
+
+                <ImageView
+                    android:id="@+id/qr_image"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="14dp"
+                    android:adjustViewBounds="true"
+                    android:background="@android:color/white"
+                    android:contentDescription="连接二维码"
+                    android:padding="10dp"
+                    android:scaleType="fitCenter" />
+
+                <TextView
+                    android:id="@+id/qr_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:text="—"
+                    android:textColor="@color/text_primary"
+                    android:textSize="@dimen/body_text"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/qr_hint"
+                    style="@style/GnssHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="两台设备需在同一 Wi-Fi 或热点下。" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssCard">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="链路" />
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="本机地址" />
+                    <TextView android:id="@+id/link_ip" style="@style/GnssKvValue" android:text="—" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="房间码" />
+                    <TextView android:id="@+id/link_room" style="@style/GnssKvValue" android:text="8888" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="传输方式" />
+                    <TextView android:id="@+id/link_transport" style="@style/GnssKvValue" android:text="UDP / 7007" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="对端" />
+                    <TextView android:id="@+id/link_peer" style="@style/GnssKvValue" android:text="未连接" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssCard">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="采样能力" />
+
+                <TextView
+                    style="@style/GnssHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="保持室外或窗边，检测约需 12 秒。用来确认本机 GPS 实际能跑多快。" />
+
+                <Button
+                    android:id="@+id/btn_probe"
+                    style="@style/GnssBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/touch_min"
+                    android:layout_marginTop="12dp"
+                    android:text="检测频率" />
+
+                <TextView
+                    android:id="@+id/probe_result"
+                    style="@style/GnssHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/brand" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginLeft="@dimen/column_gap"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout style="@style/GnssCard">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="定位数据" />
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="坐标" />
+                    <TextView android:id="@+id/fix_coord" style="@style/GnssKvValue" android:text="—" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="速率 · 精度" />
+                    <TextView android:id="@+id/fix_rate" style="@style/GnssKvValue" android:text="—" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="帧数" />
+                    <TextView android:id="@+id/fix_count" style="@style/GnssKvValue" android:text="0" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssCard">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="运行日志" />
+
+                <TextView
+                    android:id="@+id/logs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_field"
+                    android:fontFamily="monospace"
+                    android:minLines="10"
+                    android:padding="12dp"
+                    android:text="暂无日志"
+                    android:textColor="@color/log_text"
+                    android:textSize="@dimen/caption_text" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

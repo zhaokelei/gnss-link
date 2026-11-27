@@ -77,6 +77,11 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.lifecycle.service)
+    // 扫码：4.3.0 默认要求 minSdk 24，这里强制用 core 3.3.0 兼容 API 19
+    implementation(libs.zxing.embedded) {
+        exclude(group = "com.google.zxing", module = "core")
+    }
+    implementation(libs.zxing.core)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.11.1")
 }

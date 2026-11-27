@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  短边 ≥ 1200dp：Material 3 的 Large 档。对应 2560x1600@160dpi 等超宽车机
+  中控（短边 1600dp）。内容不能无限拉宽，靠 page_pad 与双栏约束住阅读宽度。
+-->
+<resources>
+    <dimen name="page_pad">40dp</dimen>
+    <dimen name="card_pad">28dp</dimen>
+    <dimen name="card_gap">20dp</dimen>
+
+    <dimen name="touch_min">56dp</dimen>
+    <dimen name="seg_height">54dp</dimen>
+
+    <dimen name="dock_bottom">112dp</dimen>
+    <dimen name="dock_item_h">80dp</dimen>
+
+    <dimen name="sky_height">360dp</dimen>
+    <dimen name="column_gap">24dp</dimen>
+
+    <dimen name="title_text">32sp</dimen>
+    <dimen name="body_text">17sp</dimen>
+    <dimen name="caption_text">14sp</dimen>
+</resources>

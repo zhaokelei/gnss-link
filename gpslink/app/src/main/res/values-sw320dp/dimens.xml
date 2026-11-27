@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  基准档：短边 < 320dp 的极小屏（老设备兜底）。
+  数值与 values/ 保持一致，仅确保任何设备都有可用的完整定义。
+-->
+<resources>
+    <dimen name="page_pad">14dp</dimen>
+    <dimen name="card_pad">14dp</dimen>
+    <dimen name="card_gap">10dp</dimen>
+
+    <dimen name="touch_min">48dp</dimen>
+    <dimen name="seg_height">42dp</dimen>
+
+    <dimen name="dock_bottom">84dp</dimen>
+    <dimen name="dock_item_h">56dp</dimen>
+
+    <dimen name="sky_height">240dp</dimen>
+    <dimen name="column_gap">10dp</dimen>
+
+    <dimen name="title_text">22sp</dimen>
+    <dimen name="body_text">13sp</dimen>
+    <dimen name="caption_text">11sp</dimen>
+</resources>

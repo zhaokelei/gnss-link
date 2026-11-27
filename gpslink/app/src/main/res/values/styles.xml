@@ -15,13 +15,13 @@
 
     <style name="GnssPageTitle">
         <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">26sp</item>
+        <item name="android:textSize">@dimen/title_text</item>
         <item name="android:textStyle">bold</item>
     </style>
 
     <style name="GnssPageSub">
         <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">13sp</item>
+        <item name="android:textSize">@dimen/body_text</item>
         <item name="android:layout_marginTop">4dp</item>
         <item name="android:layout_marginBottom">18dp</item>
     </style>
@@ -36,14 +36,14 @@
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">13sp</item>
+        <item name="android:textSize">@dimen/body_text</item>
         <item name="android:layout_marginTop">14dp</item>
         <item name="android:layout_marginBottom">6dp</item>
     </style>
 
     <style name="GnssHint">
         <item name="android:textColor">@color/text_tertiary</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">@dimen/caption_text</item>
         <item name="android:layout_marginTop">8dp</item>
         <item name="android:lineSpacingExtra">3dp</item>
     </style>
@@ -73,6 +73,14 @@
     <style name="GnssBtnDanger" parent="GnssBtn">
         <item name="android:background">@drawable/bg_btn_danger</item>
         <item name="android:textColor">#FFFFFF</item>
+    </style>
+
+    <!-- 服务运行中的「开始」按钮：换成绿色实心并把文案改为「共享中」，
+         避免只把按钮置灰导致用户以为界面卡住 -->
+    <style name="GnssBtnRunning" parent="GnssBtn">
+        <item name="android:background">@drawable/bg_btn_running</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
     <style name="GnssField">
@@ -112,16 +120,22 @@
         <item name="android:gravity">center_vertical</item>
     </style>
 
-    <!-- 分段控件：去掉系统 radio 圆圈，选中态自绘 -->
+    <!-- 分段控件：去掉系统 radio 圆圈，选中态自绘。
+         高度必须用 match_parent：父 RadioGroup 有固定高度和 padding，
+         子项再写死高度会溢出容器，把圆角边框整圈盖掉。 -->
     <style name="GnssSeg">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_height">match_parent</item>
         <item name="android:layout_weight">1</item>
         <item name="android:button">@null</item>
         <item name="android:background">@drawable/bg_seg_item</item>
         <item name="android:textColor">@color/seg_text</item>
         <item name="android:gravity">center</item>
         <item name="android:textSize">14sp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:paddingLeft">6dp</item>
+        <item name="android:paddingRight">6dp</item>
+        <item name="android:singleLine">true</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
     </style>

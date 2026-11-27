@@ -242,6 +242,7 @@ object OverlayHud {
     /** 尽量短：一枚胶囊里只放得下一个状态 + 一个数值 */
     private fun label(s: LinkStatus): String = when {
         !s.running -> "● 已停止"
+        s.fixedName.isNotBlank() && s.fixedOverride -> "● 注入中"
         s.role == Role.RECEIVER && !s.online -> "● 等待"
         s.rateHz > 0f -> "● " + "%.1f Hz".format(s.rateHz)
         s.role == Role.SENDER -> "● 发送中"

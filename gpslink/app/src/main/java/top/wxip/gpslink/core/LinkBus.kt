@@ -32,6 +32,10 @@ data class LinkStatus(
     /** 已收 / 已发包总数，排障用 */
     val rxCount: Long = 0,
     val txCount: Long = 0,
+    /** 正在注入的固定点名称；空串表示没有固定点注入，走正常接收 */
+    val fixedName: String = "",
+    /** 固定点注入是否让接收处于暂停状态（链路还在，但发送端数据不再处理） */
+    val fixedOverride: Boolean = false,
     /** 定位校验：从系统读回的当前定位 */
     val verifyAvailable: Boolean = false,
     val verifyMock: Boolean = false,

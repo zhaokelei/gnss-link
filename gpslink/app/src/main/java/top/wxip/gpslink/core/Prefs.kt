@@ -20,6 +20,7 @@ object Prefs {
     private const val K_NMEA_ENABLED = "nmea_enabled"
     private const val K_NMEA_PORT = "nmea_port"
     private const val K_ORIENTATION = "orientation"
+    private const val K_THEME = "theme"
     private const val K_KEEP_ALIVE = "keep_alive"
 
     /** NMEA over TCP 输出 */
@@ -105,6 +106,17 @@ object Prefs {
     fun loadOrientation(ctx: Context): String =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getString(K_ORIENTATION, "auto") ?: "auto"
+
+    /** 主题：system 跟随系统，light / dark 强制指定 */
+    fun saveTheme(ctx: Context, value: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putString(K_THEME, value)
+            .apply()
+    }
+
+    fun loadTheme(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getString(K_THEME, "system") ?: "system"
 
     fun saveBtMac(ctx: Context, mac: String) {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()

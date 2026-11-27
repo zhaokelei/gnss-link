@@ -21,7 +21,8 @@ data class SatStats(
  * 用数组而不是对象键名，是为了把 30 颗卫星压在 900 字节以内 ——
  * UDP 单包上限 1400，留足余量；蓝牙是流式，但小包也更省电。
  *
- * 每颗卫星编码成 [svid, 星座, cn0, 频率MHz, 是否参与定位]。
+ * 每颗卫星编码成 [svid, 星座, cn0, 频率MHz, 是否参与定位, 仰角°, 方位角°]。
+ * 仰角/方位角取整，接收端星图靠它们定位，缺了就会全部叠在同一点。
  */
 object SatWire {
 
@@ -48,6 +49,8 @@ object SatWire {
             e.put(round(s.cn0.toDouble(), 1))
             e.put(round(s.freqHz / 1e6, 2))
             e.put(if (s.usedInFix) 1 else 0)
+            e.put(s.elevation.toInt())
+            e.put(s.azimuth.toInt())
             arr.put(e)
         }
 
@@ -74,8 +77,8 @@ object SatWire {
                     svid = e.optInt(0),
                     constellation = e.optInt(1),
                     cn0 = e.optDouble(2, 0.0).toFloat(),
-                    elevation = 0f,
-                    azimuth = 0f,
+                    elevation = e.optDouble(5, 0.0).toFloat(),
+                    azimuth = e.optDouble(6, 0.0).toFloat(),
                     usedInFix = e.optInt(4, 0) == 1,
                     freqHz = (e.optDouble(3, 0.0) * 1e6).toFloat()
                 )

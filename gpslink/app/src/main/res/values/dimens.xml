@@ -1,12 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  默认档：短边 ≥ 360dp 的手机（约占市面手机 90%+，实测 1080x1920@480dpi、
+  720x1280@320dpi 均落在 360dp）。更具体的尺寸由 values-swXXXdp 覆盖。
+-->
 <resources>
     <dimen name="page_pad">20dp</dimen>
     <dimen name="card_pad">20dp</dimen>
     <dimen name="card_gap">14dp</dimen>
+
     <dimen name="radius_card">24dp</dimen>
     <dimen name="radius_field">14dp</dimen>
     <dimen name="radius_btn">16dp</dimen>
+
     <dimen name="touch_min">48dp</dimen>
+    <dimen name="seg_height">44dp</dimen>
+
     <dimen name="dock_bottom">92dp</dimen>
     <dimen name="dock_item_h">64dp</dimen>
+
+    <dimen name="sky_height">300dp</dimen>
+    <dimen name="column_gap">14dp</dimen>
+
+    <dimen name="title_text">26sp</dimen>
+    <dimen name="body_text">14sp</dimen>
+    <dimen name="caption_text">12sp</dimen>
 </resources>

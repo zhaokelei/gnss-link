@@ -16,7 +16,17 @@ data class SatInfo(
     val azimuth: Float,
     val usedInFix: Boolean,
     /** 载波频率（Hz），Android 11 以下拿不到，为 0 */
-    val freqHz: Float
+    val freqHz: Float,
+    /**
+     * 该卫星的频点数。
+     *
+     * 老接口和 API 30 以下都拿不到频率，恒为 0（未知）。
+     * GnssStatus 每颗卫星只给一个主载波频率，所以在本机侧能判断出
+     * 「收到几个不同频点」但无法知道单颗卫星自身是否多频——
+     * 这里的值统一按「该卫星有 1 个已知频点 = 1」处理，
+     * 整体几频由 [top.wxip.gpslink.core.Gnss.observedBandCount] 统计。
+     */
+    val bandCount: Int = if (freqHz > 0f) 1 else 0
 )
 
 /**

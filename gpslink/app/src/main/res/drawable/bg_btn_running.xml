@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 运行中的主按钮：绿色实心，和未运行时的蓝色主按钮形成明确的状态区分 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/running_pressed" />
+            <corners android:radius="@dimen/radius_btn" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/running" />
+            <corners android:radius="@dimen/radius_btn" />
+        </shape>
+    </item>
+</selector>

@@ -5,12 +5,8 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# 本项目为纯原生界面，没有 WebView / JS 桥接，无需对应的 keep 规则。
+# 当前 release 未开启 minifyEnabled，这里保持为空以备后续开启。
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.

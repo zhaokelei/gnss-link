@@ -22,6 +22,15 @@
     <color name="warn">#FFB84D</color>
     <color name="error">#FF7A66</color>
 
+    <!-- 深色下徽章底色压暗，避免大面积浅色块在夜间刺眼 -->
+    <color name="ok_bg">#14382C</color>
+    <color name="warn_bg">#3B2E17</color>
+    <color name="error_bg">#3D211D</color>
+    <color name="idle_bg">#232E42</color>
+
+    <color name="running">#1FBF83</color>
+    <color name="running_pressed">#188F62</color>
+
     <color name="pill_bg">#232E42</color>
     <color name="field_bg">#212B3E</color>
     <color name="log_bg">#0D1421</color>

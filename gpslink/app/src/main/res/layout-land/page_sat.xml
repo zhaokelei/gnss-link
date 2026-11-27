@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  卫星页 · 横屏双栏。
+  横屏高度紧张，若星图仍占满一屏宽度会极大挤压下方内容。
+  这里左栏放星图（宽度受限于栏宽，配合 SatelliteSkyView 的按较小边取正方形，
+  自然得到合理尺寸），右栏放统计与信号柱。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:paddingLeft="@dimen/page_pad"
+    android:paddingTop="16dp"
+    android:paddingRight="@dimen/page_pad"
+    android:paddingBottom="@dimen/dock_bottom">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            style="@style/GnssPageTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/page_sat_title" />
+
+        <TextView
+            android:id="@+id/sat_sub"
+            style="@style/GnssPageSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/page_sat_subtitle" />
+
+        <!-- 左栏不滚动：横屏高度紧张，星图按剩余高度撑满，滚动条留给右栏 -->
+        <LinearLayout
+            style="@style/GnssCard"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="0dp">
+
+            <top.wxip.gpslink.ui.SatelliteSkyView
+                android:id="@+id/sky"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginLeft="@dimen/column_gap"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout style="@style/GnssCard">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="信号" />
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="可见卫星" />
+                    <TextView android:id="@+id/sat_visible" style="@style/GnssKvValue" android:text="0" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="参与定位" />
+                    <TextView android:id="@+id/sat_used" style="@style/GnssKvValue" android:text="0" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="平均信噪比" />
+                    <TextView android:id="@+id/sat_snr" style="@style/GnssKvValue" android:text="—" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/GnssKvRow">
+                    <TextView style="@style/GnssKvKey" android:text="信号频段" />
+                    <TextView android:id="@+id/sat_bands" style="@style/GnssKvValue" android:text="—" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/sat_bands_hint"
+                    style="@style/GnssHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="按当前收到卫星的载波统计；Android 11 以下系统取不到频率。" />
+
+                <top.wxip.gpslink.ui.SatelliteBarsView
+                    android:id="@+id/bars"
+                    android:layout_width="match_parent"
+                    android:layout_height="150dp"
+                    android:layout_marginTop="14dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -26,6 +26,16 @@
     <color name="warn">#F5A524</color>
     <color name="error">#F0563E</color>
 
+    <!-- 状态徽章底色：浅底深字，在小屏和强光下车机上比纯色块更易读 -->
+    <color name="ok_bg">#E3F8EF</color>
+    <color name="warn_bg">#FFF4E0</color>
+    <color name="error_bg">#FFECEA</color>
+    <color name="idle_bg">#EEF1F6</color>
+
+    <!-- 运行中按钮：绿色实心，与「未开始」的蓝色主按钮明确区分 -->
+    <color name="running">#12A06B</color>
+    <color name="running_pressed">#0E8759</color>
+
     <!-- 功能色 -->
     <color name="pill_bg">#EEF1F6</color>
     <color name="field_bg">#F5F7FB</color>

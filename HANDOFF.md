@@ -104,26 +104,26 @@ SendService / ReceiveService
 
 | type | data 结构 | 渲染到 |
 | --- | --- | --- |
-| `init` | 配置 JSON（sid/port/host/useBt/intervalMs/injectMs/autoStart/trackEnabled/nmeaEnabled/nmeaPort/version/engine） | 设置页全部输入与开关、关于页版本 |
+| `init` | 配置 JSON（sid/port/host/useBt/intervalMs/injectMs/autoStart/trackEnabled/nmeaEnabled/nmeaPort/orientation/theme/version/engine） | 设置页全部输入与开关、关于页版本 |
 | `checks` | location/mock/battery/background/keepAlive/overlay | 授权页状态行、保活提示 |
 | `access` | sdk/androidName/tier/granted/steps/why/adb/adbCheck | 授权页分档说明与 adb 命令 |
 | `status` | running/role/peer/online/localIp/rateHz/lat/lon/accuracy/fixCount/nmeaPort | 连接页徽章与数据、NMEA 地址 |
 | `satellites` | items 数组 + source | 圆盘、信号柱、统计（**实际用 `lastSatList` 而非 JSON**） |
 | `log` | 字符串数组 | 设置页日志区（取最后 80 行） |
-| `tracks` | items 数组（name/points/path） | 轨迹列表；首条路径存进 `uiFirstTrack` 供回放 |
+| `tracks` | items 数组（name/points/path） | 轨迹列表；首条路径存进 `uiFirstTrack` 供回放，全部路径进 `uiTrackPaths` 供批量删除 |
+| `probe` | running/message | 采样能力卡片的按钮可用态与结果文本 |
 | `bt` | 设备名 | 设置页蓝牙设备行 |
-| `notice` | 文本 | Toast |
+| `notice` | 文本 | Toast（**必须直连 `Toast`，不能回调 `toast()`，否则 emit 递归**） |
 | `update-check` | tag/latest/current/size | 关于页提示 + 原生 `AlertDialog` |
 | `update-progress` | value（0-100） | 关于页「正在下载 x%」 |
 | `update-ready` | path/size | 原生对话框，确认后安装 |
 | `update-log` | text | 对话框展示更新日志 |
-| `motion` | — | 忽略（原生不需要） |
 
 ### 界面事件怎么回到业务
 
-界面侧统一调 `act(action, json)`，它内部走 `Bridge().dispatch(action, payload)`——**保留了原来 33 个桥接动作的完整 switch**，所以新增界面控件时只要调对应的 action 即可，不用重写业务。
+界面侧统一调 `act(action, json)`，它内部走 `Bridge().dispatch(action, payload)`——保留了桥接层，所以新增界面控件时只要调对应的 action 即可，不用重写业务。
 
-已有 action：`start` / `stop` / `configure` / `keepalive` / `overlay-permission` / `mock` / `battery` / `background` / `permissions` / `recheck` / `pick-bt` / `probe` / `autostart` / `copy` / `track-toggle` / `tracks` / `track-play` / `track-delete` / `nmea` / `orientation` / `check-update` / `download-update` / `install-update` / `skip-version` / `fetch-log` / `open-url`。
+已有 action：`start` / `stop` / `keepalive` / `overlay-permission` / `mock` / `battery` / `background` / `permissions` / `recheck` / `pick-bt` / `probe` / `theme` / `autostart` / `copy` / `track-toggle` / `tracks` / `track-play` / `track-delete` / `nmea` / `orientation` / `check-update` / `download-update` / `skip-version` / `fetch-log` / `open-url`。
 
 ## 6. 编译
 
@@ -210,7 +210,7 @@ sdk.dir=C\:/Users/Administrator/android-tools/sdk
 | `FTP_USER` | FTP 用户 |
 | `FTP_PASS` | FTP 密码 |
 
-`legacy-smoke.yml` 是**手动触发**的云模拟器冒烟：装包、启动、检查不白屏不崩溃。注意它原本面向 WebView 界面，v1.3.6 删除 `assets/ui` 后，里面若有页面元素检查需要复核。
+`legacy-smoke.yml` 是**手动触发**的云模拟器冒烟：装包、启动、检查不白屏不崩溃。已改为适配原生界面——用 uiautomator 的节点数判断布局是否真的画出来，并断言窗口树里 WebView 数量为 0。
 
 ## 9. FTP 分发（手工同步）
 
@@ -292,6 +292,33 @@ curl -s -I "ftp://$U:$P@$H/download/gnss-link-1.3.8.apk" | grep -i content-lengt
 9. **FTP 账号曾经配错**
    CI Secrets 里的 `FTP_USER` 一度是 `xiaolei`（另一个站点），表现为上传 552 以为磁盘满，实际是目录不存在。已改为 `gpslink`。
 
+10. **分段控件的子项不能写死高度**
+    `GnssSeg` 原先写 `layout_height=44dp`，而父 `RadioGroup` 也是 44dp 且带 4dp padding，
+    子项可用高度只有 36dp → 子项溢出容器，把圆角边框整圈盖掉，看起来"样式不对"。
+    现在子项统一 `match_parent`，容器高度走 `@dimen/seg_height`。改分段控件时注意这两者要成对。
+
+11. **`SatelliteSkyView` 不能无视父容器高度**
+    原 `onMeasure` 直接 `setMeasuredDimension(w, w)`，横屏/车机宽度上千 dp 时星图会被撑成巨大正方形。
+    现在按 width/height 两个 MeasureSpec 的较小边取正方形；横屏布局里用 `wrap_content` 让它跟着栏宽走。
+
+12. **屏幕适配按实测 dp 分档，不靠猜**
+    实测换算（dp = px ÷ (dpi/160)）：
+    | 设备 | 分辨率 | dpi | 短边 dp |
+    | --- | --- | --- | --- |
+    | 主流手机 | 1080×1920 | 480 | 360 |
+    | 大屏手机 | 1080×2400 | 440 | 393 |
+    | 大屏手机 | 1440×3200 | 560 | 411 |
+    | 老车机 | 800×480 | 240 | 320 |
+    | 车机 | 1280×720 / 1920×1080 | 240 | 480 |
+    | 车机 | 1024×600 | 160 | 600 |
+    | 车机 | 1280×720 / 1920×720 | 160 | 720 |
+    | 超宽车机 | 2560×1600 | 160 | 1600 |
+
+    关键点：**车机 dpi 普遍只有 160–240，dp 宽度远大于手机**；手机 sw 集中在 360–411。
+    据此分档（与 Material 3 的 600/840/1200/1600 断点对齐）：
+    `values-sw320dp`、`values-sw480dp`、`values-sw600dp`、`values-sw840dp`、`values-sw1200dp`，
+    默认 `values/` 面向 360dp 手机。横屏另有 `layout-land/` 双栏版本，id 与纵向完全一致。
+
 ## 11. 硬性约定（用户明确要求过的）
 
 1. **全程简体中文**：注释、提交信息、文档、界面文案。代码标识符可以英文。
@@ -309,9 +336,9 @@ curl -s -I "ftp://$U:$P@$H/download/gnss-link-1.3.8.apk" | grep -i content-lengt
 | **Android 4.4 未实测** | minSdk 19 但没在真机上跑过。风险点：`SatelliteSkyView` 自绘、`SwitchCompat` 主题依赖 |
 | **更新流程未端到端验证** | 原生 `AlertDialog` 的三条路径（立即更新 / 跳过 / 稍后）没有真实升级场景验证过 |
 | **ABI 分包未生效** | Release 里三个 APK 体积完全一样（都是 universal），说明 split 配置没起作用，可以优化 |
-| **轨迹管理偏弱** | 设置页只支持"回放最新一条"，不能选择、删除 |
+| **轨迹管理偏弱** | 设置页支持"回放最新一条"与"删除全部轨迹"，还不能逐条选择、逐条删除 |
 | **保活悬浮窗视觉未验证** | `OverlayHud` 的小胶囊尺寸/位置只在代码层面确认过 |
-| **云端截图 workflow 需复核** | `legacy-smoke.yml` 原本针对 WebView 页面，删 assets 后可能失效 |
+| **云端截图 workflow 已适配原生** | `legacy-smoke.sh` 改为按 uiautomator 节点数判断白屏，并断言 WebView 出现次数为 0；仍需实际跑一次确认阈值 20 在 API 19 上合适 |
 
 ## 13. 快速排障
 

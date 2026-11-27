@@ -12,27 +12,47 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <include android:id="@+id/page_link" layout="@layout/page_link" />
+        <!-- 每页外面必须包一层同类型的容器：横竖屏布局的根控件类型不同
+             （竖屏 ScrollView / 横屏 LinearLayout），旋转时系统按 id 恢复状态，
+             直接给 include 指定 id 会因 SavedState 类型不匹配而崩溃。 -->
+        <FrameLayout
+            android:id="@+id/page_link"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <include layout="@layout/page_link" />
+        </FrameLayout>
 
-        <include
+        <FrameLayout
             android:id="@+id/page_sat"
-            layout="@layout/page_sat"
-            android:visibility="gone" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+            <include layout="@layout/page_sat" />
+        </FrameLayout>
 
-        <include
+        <FrameLayout
             android:id="@+id/page_access"
-            layout="@layout/page_access"
-            android:visibility="gone" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+            <include layout="@layout/page_access" />
+        </FrameLayout>
 
-        <include
+        <FrameLayout
             android:id="@+id/page_settings"
-            layout="@layout/page_settings"
-            android:visibility="gone" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+            <include layout="@layout/page_settings" />
+        </FrameLayout>
 
-        <include
+        <FrameLayout
             android:id="@+id/page_about"
-            layout="@layout/page_about"
-            android:visibility="gone" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+            <include layout="@layout/page_about" />
+        </FrameLayout>
     </FrameLayout>
 
     <LinearLayout

@@ -6,6 +6,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import androidx.core.content.ContextCompat
+import top.wxip.gpslink.R
 import top.wxip.gpslink.core.Gnss
 import top.wxip.gpslink.core.SatInfo
 import java.util.Locale
@@ -33,16 +35,21 @@ class SatelliteBarsView @JvmOverloads constructor(
     private val rightWidth = 72f * d
     private val barHeight = 8f * d
 
+    /** 正文色从主题取，深色模式下自动变成浅色，否则黑字在深色卡片上看不见 */
+    private val textColor = ContextCompat.getColor(context, R.color.text_primary)
+    private val dimColor = ContextCompat.getColor(context, R.color.text_tertiary)
+    private val barBgColor = ContextCompat.getColor(context, R.color.sky_circle)
+
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = 11f * d
-        color = 0xFF111318.toInt()
+        color = textColor
     }
     private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = 10f * d
-        color = 0xFF111318.toInt()
+        color = textColor
     }
     private val barBg = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFE3E6EA.toInt()
+        color = barBgColor
     }
 
     /** drawRoundRect(float×6) 是 API 21 才有的重载，用 RectF 版兜住低版本 */
@@ -65,7 +72,7 @@ class SatelliteBarsView @JvmOverloads constructor(
         super.onDraw(canvas)
 
         if (sats.isEmpty()) {
-            small.color = 0xFF5B6472.toInt()
+            small.color = dimColor
             drawCenter(canvas, "等待卫星数据…", 0f, padTop + rowHeight / 2f, small)
             return
         }
@@ -84,7 +91,7 @@ class SatelliteBarsView @JvmOverloads constructor(
             drawCenter(canvas, Gnss.short(s.constellation), 0f, cy, small)
             small.isFakeBoldText = false
 
-            text.color = 0xFF111318.toInt()
+            text.color = textColor
             drawCenter(canvas, prn(s), tagWidth, cy, text)
 
             val barTop = cy - barHeight / 2f
@@ -97,7 +104,7 @@ class SatelliteBarsView @JvmOverloads constructor(
                 canvas.drawRoundRect(barRect, barHeight / 2f, barHeight / 2f, small)
             }
 
-            small.color = if (s.usedInFix) 0xFF111318.toInt() else 0xFF9AA4B2.toInt()
+            small.color = if (s.usedInFix) textColor else dimColor
             val label = String.format(Locale.US, "%.0f  %s", s.cn0, Gnss.band(s.freqHz))
             drawCenter(canvas, label, barRight + 8f * d, cy, small)
 

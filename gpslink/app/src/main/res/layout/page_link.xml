@@ -30,7 +30,7 @@
         <RadioGroup
             android:id="@+id/role"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/seg_height"
             android:layout_marginBottom="16dp"
             android:background="@drawable/bg_segment"
             android:orientation="horizontal"
@@ -47,6 +47,14 @@
                 style="@style/GnssSeg"
                 android:text="@string/role_receive" />
         </RadioGroup>
+
+        <Button
+            android:id="@+id/btn_scan"
+            style="@style/GnssBtn"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/touch_min"
+            android:layout_marginBottom="14dp"
+            android:text="扫码连接共享端" />
 
         <LinearLayout style="@style/GnssCard">
 
@@ -111,6 +119,56 @@
             </LinearLayout>
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/qr_card"
+            style="@style/GnssCard"
+            android:visibility="gone">
+
+            <TextView
+                style="@style/GnssCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="扫码连接" />
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="让另一台设备用本应用的「扫码连接」对准下方二维码，即可自动填好地址并开始接收。" />
+
+            <ImageView
+                android:id="@+id/qr_image"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="14dp"
+                android:adjustViewBounds="true"
+                android:background="@android:color/white"
+                android:contentDescription="连接二维码"
+                android:padding="10dp"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/qr_address"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:text="—"
+                android:textColor="@color/text_primary"
+                android:textSize="@dimen/body_text"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/qr_hint"
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="两台设备需在同一 Wi-Fi 或热点下。" />
+        </LinearLayout>
+
         <LinearLayout style="@style/GnssCard">
 
             <TextView
@@ -162,6 +220,58 @@
                 <TextView style="@style/GnssKvKey" android:text="帧数" />
                 <TextView android:id="@+id/fix_count" style="@style/GnssKvValue" android:text="0" />
             </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <TextView
+                style="@style/GnssCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="采样能力" />
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="保持室外或窗边，检测约需 12 秒。用来确认本机 GPS 实际能跑多快。" />
+
+            <Button
+                android:id="@+id/btn_probe"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginTop="12dp"
+                android:text="检测频率" />
+
+            <TextView
+                android:id="@+id/probe_result"
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/brand" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <TextView
+                style="@style/GnssCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="运行日志" />
+
+            <TextView
+                android:id="@+id/logs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_field"
+                android:fontFamily="monospace"
+                android:minLines="6"
+                android:padding="12dp"
+                android:text="暂无日志"
+                android:textColor="@color/log_text"
+                android:textSize="@dimen/caption_text" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

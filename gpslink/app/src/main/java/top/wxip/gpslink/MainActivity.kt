@@ -10,7 +10,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -19,6 +18,7 @@ import android.os.Looper
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.TextView
@@ -33,6 +33,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import org.json.JSONArray
@@ -70,7 +71,6 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     // 自更新：保留最新安装包的文件名与已落盘 APK，供前端按需触发
     private var lastApkName = ""
     private var lastApkSize = 0L
-    private var lastApkPath = ""
     private val updatePrefs by lazy { getSharedPreferences("update", Context.MODE_PRIVATE) }
     private val currentVersion: String by lazy {
         try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.6" }
@@ -87,8 +87,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         publishChecks()
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 主题必须在 super.onCreate 之前定下来：这里设定后，Resources 会直接按
+        // values-night 加载，不需要先画一遍再重建
+        delegate.localNightMode = nightModeOf(Prefs.loadTheme(this))
         super.onCreate(savedInstanceState)
         useBt = Prefs.loadUseBt(this)
         keepAlive = Prefs.loadKeepAlive(this)
@@ -96,7 +98,11 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         // 原生界面：布局由 res/layout 提供，所有状态通过 render() 直接写控件
         setContentView(R.layout.activity_main)
         applyOrientation(Prefs.loadOrientation(this))
+        uiRole = savedInstanceState?.getString(KEY_ROLE) ?: uiRole
         bindUi()
+        findViewById<RadioGroup>(R.id.role).check(
+            if (uiRole == "receiver") R.id.role_receive else R.id.role_send
+        )
         ready = true
         LinkBus.add(this)
         // 原生界面没有 ready 握手，这里主动推一次首屏数据
@@ -106,15 +112,29 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         publishBtLabel()
         onStatus(LinkBus.status)
         publishSatellites()
+        emitLog()
+        // 旋转会重建 Activity，页签要回到用户原来那一页
+        showPage(savedInstanceState?.getString(KEY_PAGE) ?: uiPage)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_PAGE, uiPage)
+        outState.putString(KEY_ROLE, uiRole)
     }
 
     // ---------------------------------------------------------------- 原生界面
 
     private var uiRole = "sender"
+    private var uiPage = "link"
     private var uiBinding = false
     private var lastSatList: List<SatInfo> = emptyList()
     private val uiHandler = Handler(Looper.getMainLooper())
     private var uiFirstTrack = ""
+    private val uiTrackPaths = ArrayList<String>()
+
+    /** 预设区上一次渲染时的状态指纹，用来跳过 10Hz 状态流里的重复刷新 */
+    private var presetSig = ""
 
     /** 把界面事件转成原本的桥接动作，业务逻辑一行都不用改 */
     private fun act(action: String, data: JSONObject = JSONObject()) {
@@ -138,10 +158,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                 refreshRoleUi()
             }
         }
-        findViewById<Button>(R.id.start).setOnClickListener {
-            if (!LinkBus.status.running) act("start", currentConfig())
-        }
+        // start 的点击行为由 renderRunState 统一接管（未运行时启动、运行中则停止）
+        renderRunState(LinkBus.status.running, LinkBus.status.role.name)
         findViewById<Button>(R.id.stop).setOnClickListener { act("stop") }
+        findViewById<Button>(R.id.btn_scan).setOnClickListener { startScan() }
 
         // 授权页
         findViewById<Button>(R.id.btn_permissions).setOnClickListener { act("permissions") }
@@ -152,6 +172,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         findViewById<Button>(R.id.btn_copy_adb).setOnClickListener {
             act("copy", JSONObject().put("text", findViewById<TextView>(R.id.adb_cmd).text.toString()))
         }
+        buildPresetList()
 
         // 设置页
         findViewById<RadioGroup>(R.id.mode).setOnCheckedChangeListener { _, id ->
@@ -162,6 +183,18 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             if (uiFirstTrack.isBlank()) toast("暂无可回放的轨迹")
             else act("track-play", JSONObject().put("path", uiFirstTrack))
         }
+        findViewById<Button>(R.id.btn_track_delete).setOnClickListener { confirmDeleteTracks() }
+
+        // 设置页 · 界面
+        findViewById<RadioGroup>(R.id.orientation).setOnCheckedChangeListener { _, id ->
+            if (uiBinding) return@setOnCheckedChangeListener
+            act("orientation", JSONObject().put("value", orientationValueOf(id)))
+        }
+        findViewById<RadioGroup>(R.id.theme).setOnCheckedChangeListener { _, id ->
+            if (uiBinding) return@setOnCheckedChangeListener
+            act("theme", JSONObject().put("value", themeValueOf(id)))
+        }
+        findViewById<Button>(R.id.btn_probe).setOnClickListener { act("probe") }
         findViewById<SwitchCompat>(R.id.keepalive).setOnCheckedChangeListener { _, on ->
             if (!uiBinding) act("keepalive", JSONObject().put("enabled", on))
         }
@@ -189,11 +222,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         findViewById<Button>(R.id.btn_home).setOnClickListener {
             act("open-url", JSONObject().put("url", "https://www.iqiq.cn"))
         }
-
-        showPage("link")
     }
 
     private fun showPage(key: String) {
+        uiPage = key
         val pages = mapOf(
             "link" to R.id.page_link,
             "sat" to R.id.page_sat,
@@ -216,6 +248,75 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
 
     private fun setSwitch(id: Int, on: Boolean) {
         findViewById<SwitchCompat>(id).isChecked = on
+    }
+
+    /**
+     * 「开始」按钮的运行态。
+     *
+     * 原来运行后直接 isEnabled=false，按钮变成一块灰，用户看不出服务到底起没起。
+     * 现在运行中换成绿色实心 + 「共享中/接收中」文案，并且保持可点击——
+     * 再点一次等同于停止，减少一次「先找停止按钮」的操作。
+     */
+    private fun renderRunState(running: Boolean, role: String) {
+        val receive = role == "RECEIVER" || uiRole == "receiver"
+        findViewById<Button>(R.id.start).apply {
+            if (running) {
+                setBackgroundResource(R.drawable.bg_btn_running)
+                setTextColor(ContextCompat.getColor(context, R.color.text_on_brand))
+                text = if (receive) "接收中" else "共享中"
+                isEnabled = true
+                setOnClickListener { act("stop") }
+            } else {
+                setBackgroundResource(R.drawable.bg_btn_primary)
+                setTextColor(ContextCompat.getColor(context, R.color.text_on_brand))
+                text = if (receive) "开始接收" else "开始共享"
+                isEnabled = true
+                setOnClickListener {
+                    if (!LinkBus.status.running) act("start", currentConfig())
+                }
+            }
+        }
+    }
+
+    private fun orientationValueOf(id: Int): String = when (id) {
+        R.id.orientation_landscape -> "landscape"
+        R.id.orientation_portrait -> "portrait"
+        else -> "auto"
+    }
+
+    private fun orientationIdOf(value: String): Int = when (value) {
+        "landscape" -> R.id.orientation_landscape
+        "portrait" -> R.id.orientation_portrait
+        else -> R.id.orientation_auto
+    }
+
+    private fun themeValueOf(id: Int): String = when (id) {
+        R.id.theme_light -> "light"
+        R.id.theme_dark -> "dark"
+        else -> "system"
+    }
+
+    private fun themeIdOf(value: String): Int = when (value) {
+        "light" -> R.id.theme_light
+        "dark" -> R.id.theme_dark
+        else -> R.id.theme_system
+    }
+
+    /** 轨迹是全量删除，误触代价高，先问一句 */
+    private fun confirmDeleteTracks() {
+        if (uiTrackPaths.isEmpty()) return toast("暂无轨迹")
+        AlertDialog.Builder(this)
+            .setTitle("删除全部轨迹")
+            .setMessage("共 ${uiTrackPaths.size} 条轨迹将被永久删除，无法恢复。")
+            .setPositiveButton("删除") { _, _ ->
+                val count = uiTrackPaths.size
+                uiTrackPaths.toList().forEach {
+                    act("track-delete", JSONObject().put("path", it).put("silent", true))
+                }
+                toast("已删除 $count 条轨迹")
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun currentConfig(): JSONObject = JSONObject()
@@ -250,7 +351,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             "需先把本机设为模拟位置应用，详见授权页。"
         else
             "两台设备连接同一 Wi-Fi 或热点，并使用相同房间码。"
-        findViewById<Button>(R.id.start).text = if (receive) "开始接收" else "开始共享"
+        // 运行中由 renderRunState 接管文案与配色，这里不要去覆盖
+        if (!LinkBus.status.running) {
+            renderRunState(false, uiRole)
+        }
         findViewById<Button>(R.id.stop).text = if (receive) "停止接收" else "停止共享"
         findViewById<TextView>(R.id.link_peer).text =
             if (receive) "另一台手机" else "另一台设备"
@@ -276,14 +380,176 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .show()
     }
 
+    /** 授权项状态：已完成用绿色，未完成用警示橙，比一片灰色更容易扫到待办 */
+    /** 授权项状态：已完成用绿色，未完成用警示橙，比一片灰色更容易扫到待办 */
     private fun mark(id: Int, ok: Boolean) {
         findViewById<TextView>(id).apply {
             text = if (ok) "已就绪" else "待设置"
             setTextColor(
                 ContextCompat.getColor(
                     context,
-                    if (ok) R.color.ok else R.color.text_secondary
+                    if (ok) R.color.ok else R.color.warn
                 )
+            )
+        }
+    }
+
+    /**
+     * 按省市动态生成预设地点按钮。
+     *
+     * 每个地点一格按钮，点击即持续注入该坐标；再点一次停止。
+     * 用代码生成而不是在 XML 里写死，是因为地点集合后续可能增删，
+     * 且横竖屏两套布局不必各维护一份。
+     */
+    private fun buildPresetList() {
+        val host = findViewById<LinearLayout>(R.id.preset_list)
+        host.removeAllViews()
+        val dp = resources.displayMetrics.density
+
+        for ((province, list) in Presets.byProvince) {
+            val title = TextView(this).apply {
+                text = province
+                setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
+                textSize = 12f
+                setPadding(0, (10 * dp).toInt(), 0, (4 * dp).toInt())
+            }
+            host.addView(title)
+
+            // 每行两个按钮，窄屏也不会把地名挤断
+            var row: LinearLayout? = null
+            list.forEachIndexed { i, place ->
+                if (i % 2 == 0) {
+                    row = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    }
+                    host.addView(row)
+                }
+                val active = isInjecting(place)
+                val btn = Button(this).apply {
+                    text = if (active) "注入中 · ${place.name}" else place.name
+                    textSize = 13f
+                    isAllCaps = false
+                    setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), 0)
+                    minHeight = (44 * dp).toInt()
+                    minWidth = 0
+                    setBackgroundResource(if (active) R.drawable.bg_btn_running else R.drawable.bg_btn)
+                    tag = place.key
+                    isSelected = active
+                    setTextColor(
+                        ContextCompat.getColor(
+                            context,
+                            if (active) R.color.text_on_brand else R.color.text_primary
+                        )
+                    )
+                    layoutParams = LinearLayout.LayoutParams(
+                        0, (44 * dp).toInt(), 1f
+                    ).apply {
+                        rightMargin = (8 * dp).toInt()
+                        topMargin = (6 * dp).toInt()
+                    }
+                    setOnClickListener { togglePreset(place) }
+                }
+                row?.addView(btn)
+            }
+        }
+        presetSig = ""          // 按钮是新建的，强制下一行把状态刷上去
+        syncPresetState()
+    }
+
+    /**
+     * 同步预设按钮的选中态与卡片底部的状态文字。
+     *
+     * 状态以服务为准（fixedName），而不是界面自己记的 key —— 服务可能被
+     * 通知栏、开机自启或进程重建重新拉起，界面重进时要能对得上。
+     */
+    private fun syncPresetState() {
+        // status 事件在注入期间是 10Hz 的，没有变化就别重复刷控件
+        val s = LinkBus.status
+        val sig = listOf(
+            s.running, s.fixedName, s.fixedOverride,
+            s.verifyAvailable, s.verifyMock, (s.verifyDeltaM * 10).toLong()
+        ).joinToString("|")
+        if (sig == presetSig) return
+        presetSig = sig
+
+        val list = findViewById<LinearLayout>(R.id.preset_list)
+        val activeName = LinkBus.status.fixedName
+        for (i in 0 until list.childCount) {
+            val row = list.getChildAt(i) as? LinearLayout ?: continue
+            for (j in 0 until row.childCount) {
+                val btn = row.getChildAt(j) as? Button ?: continue
+                val place = Presets.find(btn.tag as? String ?: "") ?: continue
+                val active = isInjecting(place)
+                btn.text = if (active) "注入中 · ${place.name}" else place.name
+                btn.isSelected = active
+                btn.setBackgroundResource(if (active) R.drawable.bg_btn_running else R.drawable.bg_btn)
+                btn.setTextColor(
+                    ContextCompat.getColor(
+                        this@MainActivity,
+                        if (active) R.color.text_on_brand else R.color.text_primary
+                    )
+                )
+            }
+        }
+        findViewById<TextView>(R.id.preset_state).text = when {
+            activeName.isEmpty() -> "未注入任何地点。点一个地点即开始持续注入，再点一次恢复接收共享坐标。"
+            else -> "正在注入固定点：$activeName" +
+                if (LinkBus.status.fixedOverride) "（接收已暂停，再点一次恢复接收）" else ""
+        }
+        renderVerifyHint(findViewById(R.id.preset_verify_hint))
+    }
+
+    /**
+     * 把「注入到底有没有被系统采纳」翻成人话。
+     *
+     * verify 系列字段来自引擎每秒从 LocationManager 读回的值，也就是导航 App
+     * 拿到的同一个值：距离注入点几十米内、且带 mock 标记，就能判定系统已经在
+     * 用我们注入的位置，而不是本机 GPS。
+     */
+    private fun renderVerifyHint(view: TextView) {
+        val s = LinkBus.status
+        view.text = when {
+            !s.running -> "如何判断模拟位置是否成功：先点上面的地点开始注入，再用导航软件核对蓝点坐标。"
+            !s.verifyAvailable -> "正在等待系统回读定位…若一直无结果，请确认已选中本应用为模拟位置信息应用。"
+            s.verifyDeltaM in 0.0..60.0 && s.verifyMock ->
+                "✅ 系统回读与注入点相差 ${"%.0f".format(s.verifyDeltaM)} 米，且标记为模拟位置 —— 本机 GPS 已被顶替。"
+            s.verifyDeltaM in 0.0..60.0 ->
+                "系统回读已接近注入点（相差 ${"%.0f".format(s.verifyDeltaM)} 米），但未标记为模拟位置，个别 ROM 会省略该标记。"
+            else ->
+                "❌ 系统回读与注入点相差 ${"%.0f".format(s.verifyDeltaM)} 米，本机 GPS 可能仍在生效。"
+        }
+    }
+
+    /** 当前是否正在注入这个固定点 */
+    private fun isInjecting(place: PresetPlace): Boolean =
+        LinkBus.status.running && LinkBus.status.fixedName == place.name
+
+    /**
+     * 切换某地点的注入状态。
+     *
+     * 已在注入同一个点时再点一次 = 取消，恢复接收共享端坐标；
+     * 切到别的点则直接换目标，不需要用户先手动取消。
+     */
+    private fun togglePreset(place: PresetPlace) {
+        if (isInjecting(place)) {
+            if (LinkBus.status.fixedOverride) {
+                ReceiveService.clearFixed(this)
+                toast("已取消固定点，恢复接收共享坐标")
+            } else {
+                ReceiveService.clearFixed(this)
+                toast("已停止注入")
+            }
+            return
+        }
+        withPermission {
+            act("inject-fixed", JSONObject().put("key", place.key))
+            toast(
+                if (LinkBus.status.running) "固定点注入：${place.name}，接收已暂停"
+                else "正在注入：${place.province} · ${place.name}"
             )
         }
     }
@@ -318,6 +584,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                 setSwitch(R.id.autostart, d.optBoolean("autoStart"))
                 setSwitch(R.id.track_toggle, d.optBoolean("trackEnabled"))
                 setSwitch(R.id.nmea, d.optBoolean("nmeaEnabled"))
+                findViewById<RadioGroup>(R.id.orientation)
+                    .check(orientationIdOf(d.optString("orientation", "auto")))
+                findViewById<RadioGroup>(R.id.theme)
+                    .check(themeIdOf(d.optString("theme", "system")))
                 findViewById<EditText>(R.id.nmea_port)
                     .setText(d.optInt("nmeaPort", Protocol.DEFAULT_NMEA_PORT).toString())
                 findViewById<TextView>(R.id.about_version).text = "v" + d.optString("version")
@@ -337,7 +607,15 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                 mark(R.id.check_battery, d.optBoolean("battery"))
                 val alive = d.optBoolean("keepAlive")
                 val overlay = d.optBoolean("overlay")
-                findViewById<TextView>(R.id.keepalive_state).text = if (alive) "已开启" else "未开启"
+                findViewById<TextView>(R.id.keepalive_state).apply {
+                    text = if (alive) "已开启" else "未开启"
+                    setTextColor(
+                        ContextCompat.getColor(context, if (alive) R.color.ok else R.color.text_secondary)
+                    )
+                    setBackgroundResource(
+                        if (alive) R.drawable.bg_tag_ok else R.drawable.bg_tag_idle
+                    )
+                }
                 findViewById<Button>(R.id.btn_overlay).visibility =
                     if (overlay) View.GONE else View.VISIBLE
                 findViewById<TextView>(R.id.keepalive_hint).text = when {
@@ -365,14 +643,40 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             "status" -> {
                 if (d == null) return
                 val running = d.optBoolean("running")
-                findViewById<Button>(R.id.start).isEnabled = !running
+                // 固定点注入期间接收被暂停，徽标单独给一个状态，避免显示成"等待"
+                val paused = d.optString("fixedName").isNotBlank() && d.optBoolean("fixedOverride")
+                syncPresetState()
+                renderRunState(running, d.optString("role"))
                 findViewById<Button>(R.id.stop).isEnabled = running
-                findViewById<TextView>(R.id.state_badge).text = when {
-                    !running -> "未运行"
-                    d.optString("role") == "RECEIVER" && !d.optBoolean("online") -> "等待"
-                    else -> "运行中"
+                findViewById<TextView>(R.id.state_badge).apply {
+                    text = when {
+                        !running -> "未运行"
+                        paused -> "注入中 · 接收暂停"
+                        d.optString("role") == "RECEIVER" && !d.optBoolean("online") -> "等待"
+                        else -> "运行中"
+                    }
+                    setTextColor(
+                        ContextCompat.getColor(
+                            context,
+                            when {
+                                !running -> R.color.text_secondary
+                                paused -> R.color.brand
+                                d.optString("role") == "RECEIVER" && !d.optBoolean("online") -> R.color.warn
+                                else -> R.color.ok
+                            }
+                        )
+                    )
+                    setBackgroundResource(
+                        when {
+                            !running -> R.drawable.bg_tag_idle
+                            paused -> R.drawable.bg_tag
+                            d.optString("role") == "RECEIVER" && !d.optBoolean("online") -> R.drawable.bg_tag_warn
+                            else -> R.drawable.bg_tag_ok
+                        }
+                    )
                 }
                 findViewById<TextView>(R.id.link_ip).text = d.optString("localIp").ifBlank { "—" }
+                refreshQrCard(running)
                 findViewById<TextView>(R.id.link_peer).text = d.optString("peer").ifBlank {
                     if (d.optString("role") == "RECEIVER") "另一台手机" else "另一台设备"
                 }
@@ -393,6 +697,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                     "开始共享后显示连接地址"
             }
             "satellites" -> {
+                findViewById<TextView>(R.id.sat_sub).text =
+                    d?.optString("source")?.ifBlank { null } ?: getString(R.string.page_sat_subtitle)
                 findViewById<SatelliteSkyView>(R.id.sky).setSatellites(lastSatList)
                 findViewById<SatelliteBarsView>(R.id.bars).setSatellites(lastSatList)
                 findViewById<TextView>(R.id.sat_visible).text = lastSatList.size.toString()
@@ -401,6 +707,29 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                 else lastSatList.sumOf { it.cn0.toDouble() } / lastSatList.size
                 findViewById<TextView>(R.id.sat_snr).text =
                     if (lastSatList.isEmpty()) "—" else "%.1f dB-Hz".format(avg)
+
+                // 按「当前收到的卫星」统计频段，而不是手机硬件支持几频：
+                // 手机标称多频，但此刻空中的卫星可能只覆盖到 L1 单频
+                val bandCount = Gnss.observedBandCount(lastSatList)
+                val bands = Gnss.observedBands(lastSatList)
+                findViewById<TextView>(R.id.sat_bands).apply {
+                    text = if (bandCount == 0) "—"
+                    else Gnss.bandCountLabel(bandCount) + " · " + bands.joinToString("/")
+                    setTextColor(
+                        ContextCompat.getColor(
+                            context,
+                            if (bandCount >= 2) R.color.ok else R.color.text_primary
+                        )
+                    )
+                }
+                findViewById<TextView>(R.id.sat_bands_hint).apply {
+                    visibility = View.VISIBLE
+                    text = when {
+                        lastSatList.isEmpty() -> "等待卫星数据后统计频段。"
+                        bandCount == 0 -> "当前系统不提供载波频率，无法判断频段（需 Android 11 及以上）。"
+                        else -> "按当前收到卫星的载波统计，共 ${bandCount} 个频点。"
+                    }
+                }
             }
             "log" -> {
                 val lines = (data as? JSONArray)?.let { arr ->
@@ -412,25 +741,30 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             "tracks" -> {
                 val arr = d?.optJSONArray("items") ?: (data as? JSONArray)
                 val names = ArrayList<String>()
-                if (arr != null) {
-                    for (i in 0 until arr.length()) {
-                        val o = arr.optJSONObject(i) ?: continue
-                        names.add(o.optString("name") + " · " + o.optInt("points") + " 点")
-                    }
-                }
+                uiTrackPaths.clear()
                 uiFirstTrack = ""
                 if (arr != null) {
                     for (i in 0 until arr.length()) {
                         val o = arr.optJSONObject(i) ?: continue
-                        uiFirstTrack = o.optString("path")
-                        if (uiFirstTrack.isNotBlank()) break
+                        names.add(o.optString("name") + " · " + o.optInt("points") + " 点")
+                        val path = o.optString("path")
+                        if (path.isNotBlank()) {
+                            uiTrackPaths.add(path)
+                            if (uiFirstTrack.isBlank()) uiFirstTrack = path
+                        }
                     }
                 }
                 findViewById<TextView>(R.id.track_list).text =
                     if (names.isEmpty()) "暂无轨迹" else names.joinToString("\n")
+                findViewById<Button>(R.id.btn_track_delete).isEnabled = uiTrackPaths.isNotEmpty()
+            }
+            "probe" -> {
+                findViewById<Button>(R.id.btn_probe).isEnabled = !(d?.optBoolean("running") ?: false)
+                findViewById<TextView>(R.id.probe_result).text = d?.optString("message").orEmpty()
             }
             "bt" -> findViewById<TextView>(R.id.bt_label).text = data.toString()
-            "notice" -> toast(data.toString())
+            // 这里必须直接弹 Toast：走 toast() 会 emit("notice") 回到本分支，形成无限递归
+            "notice" -> Toast.makeText(this, data.toString(), Toast.LENGTH_SHORT).show()
             "update-check" -> {
                 if (d == null) return
                 val latest = d.optString("latest")
@@ -478,17 +812,6 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                 try {
                     val data = JSONObject(payload)
                     when (action) {
-                        "ready" -> {
-                            ready = true
-                            publishConfig()
-                            publishChecks()
-                            publishBtLabel()
-                            publishTracks()
-                            onStatus(LinkBus.status)
-                            publishSatellites()
-                            emit("log", JSONArray(logLines.toList()))
-                        }
-                        "configure" -> configure(data)
                         "start" -> if (!LinkBus.status.running) {
                             configure(data)
                             withPermission { start(data.optString("role")) }
@@ -504,7 +827,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         "recheck" -> publishChecks()
                         "pick-bt" -> withPermission { pickBtDevice() }
                         "probe" -> runProbe()
-                        "theme" -> applySystemTheme(data.optBoolean("dark"))
+                        "theme" -> applyThemeMode(data.optString("value", "system"))
                         "autostart" -> {
                             val on = data.optBoolean("enabled")
                             Prefs.saveAutoStart(this@MainActivity, on)
@@ -515,7 +838,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         "track-toggle" -> toggleTrack(data.optBoolean("enabled"))
                         "tracks" -> publishTracks()
                         "track-play" -> playTrack(data.optString("path"))
-                        "track-delete" -> deleteTrack(data.optString("path"))
+                        "track-delete" -> deleteTrack(data.optString("path"), data.optBoolean("silent"))
+                        "inject-fixed" -> injectFixed(data.optString("key"))
+                        "scan" -> startScan()
+                        "scan-result" -> handleScanResult(data.optString("raw"))
                         "nmea" -> configureNmea(data.optBoolean("enabled"), data.optInt("port"))
                         "orientation" -> {
                             val value = data.optString("value", "auto")
@@ -526,7 +852,6 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                         // 自更新桥接
                         "check-update" -> checkUpdate()
                         "download-update" -> downloadUpdate()
-                        "install-update" -> installUpdate(lastApkPath)
                         "skip-version" -> skipVersion(data.optString("tag"))
                         "fetch-log" -> fetchUpdateLog()
                         "open-url" -> openExternalUrl(data.optString("url"))
@@ -555,13 +880,12 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("nmeaEnabled", Prefs.loadNmeaEnabled(this))
             .put("nmeaPort", Prefs.loadNmeaPort(this))
             .put("orientation", Prefs.loadOrientation(this))
+            .put("theme", Prefs.loadTheme(this))
             .put("package", packageName)
             .put("keepAlive", keepAlive)
-            // 排查车机问题时最需要的一行：App 实际用的是系统 WebView，不是车机浏览器
-            .put("engine", webEngineLabel())
-            .put("version", currentVersion)
-            .put("dark", resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
-            .put("reduceMotion", reducedMotion()))
+            // 排查车机问题时最需要的一行：报出系统版本，便于区分不同 ROM 的差异
+            .put("engine", engineLabel())
+            .put("version", currentVersion))
     }
 
     private fun copyText(text: String) {
@@ -631,10 +955,102 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
-    private fun deleteTrack(path: String) {
+    /**
+     * 持续注入一个预设坐标。
+     *
+     * 已有任务在跑时先停掉再开新的，避免测试 provider 被两个循环同时写入。
+     */
+    private fun injectFixed(key: String) {
+        val place = Presets.find(key) ?: return toast("未知地点")
+        if (!engine.isSelectedAsMockApp()) {
+            publishChecks()
+            return toast("注入需要模拟位置授权：${engine.describe().steps}")
+        }
+        try {
+            ReceiveService.injectFixed(this, place.key)
+        } catch (t: Throwable) {
+            toast("注入失败：${t.message}")
+        }
+    }
+
+    /** 打开扫码页；相机权限在扫码页内部按需申请 */
+    private fun startScan() {
+        startActivityForResult(Intent(this, ScanActivity::class.java), REQ_SCAN)
+    }
+
+    /**
+     * 处理扫码结果：把地址、端口、房间码填进界面并直接开始接收。
+     *
+     * 只填参数不自动连接会让用户以为没反应，所以这里填完立刻启动。
+     */
+    private fun handleScanResult(raw: String) {
+        val payload = ConnectCode.decode(raw)
+        if (payload == null) {
+            toast("无法识别的二维码")
+            return
+        }
+        findViewById<EditText>(R.id.host).setText(payload.ip)
+        findViewById<EditText>(R.id.port).setText(payload.port.toString())
+        findViewById<EditText>(R.id.sid).setText(payload.sid)
+        findViewById<RadioGroup>(R.id.role).check(R.id.role_receive)
+        findViewById<RadioGroup>(R.id.mode).check(R.id.mode_lan)
+        toast("已连接 ${payload.ip}:${payload.port}")
+        act("start", currentConfig())
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_SCAN && resultCode == RESULT_OK) {
+            handleScanResult(data?.getStringExtra(ScanActivity.EXTRA_RAW).orEmpty())
+        }
+    }
+
+    /**
+     * 刷新共享端二维码。
+     *
+     * 二维码内容随 IP/端口/房间码变化，且只在「发送端运行中」时才展示——
+     * 没跑起来时 IP 可能还没分配到，扫了也连不上。
+     */
+    private fun refreshQrCard(running: Boolean) {
+        val card = findViewById<LinearLayout>(R.id.qr_card)
+        val image = findViewById<ImageView>(R.id.qr_image)
+        val addr = findViewById<TextView>(R.id.qr_address)
+        val hint = findViewById<TextView>(R.id.qr_hint)
+
+        val role = LinkBus.status.role
+        if (!running || role == Role.RECEIVER) {
+            card.visibility = View.GONE
+            return
+        }
+        val ip = NetInfo.localIpv4()
+        if (ip.isBlank()) {
+            card.visibility = View.GONE
+            return
+        }
+        val port = findViewById<EditText>(R.id.port).text.toString()
+            .toIntOrNull() ?: Protocol.DEFAULT_PORT
+        val sid = findViewById<EditText>(R.id.sid).text.toString().trim().ifBlank { "8888" }
+
+        card.visibility = View.VISIBLE
+        addr.text = "$ip:$port"
+        hint.text = "房间码 $sid · 两台设备需在同一 Wi-Fi 或热点下"
+
+        // 二维码按屏幕宽度自适应：横屏车机上不要画成巨大的方块
+        val target = (minOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) * 0.5)
+            .toInt().coerceIn(240, 720)
+        val bmp = ConnectCode.qrBitmap(ConnectCode.encode(ip, port, sid), target)
+        if (bmp != null) {
+            image.setImageBitmap(bmp)
+        } else {
+            image.setImageDrawable(null)
+            addr.text = "二维码生成失败\n$ip:$port"
+        }
+    }
+
+    private fun deleteTrack(path: String, silent: Boolean = false) {
         if (path.isBlank()) return
         val ok = TrackRecorder.delete(File(path))
-        toast(if (ok) "轨迹已删除" else "删除失败")
+        if (!silent) toast(if (ok) "轨迹已删除" else "删除失败")
         publishTracks()
     }
 
@@ -679,21 +1095,14 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     companion object {
         private const val TAG = "GnssLink"
         private const val BASE_URL = "https://gps.iqiq.cn/download"
+        private const val REQ_SCAN = 0x5CA1
+        private const val KEY_PAGE = "ui_page"
+        private const val KEY_ROLE = "ui_role"
 
         // 更新日志走 CDN，固定 URL 会被缓存住导致迟迟收不到新版本提示，
         // 每次请求带上时间戳，让 CDN 按不同 URL 处理，始终回源。
         fun logUrl(): String = "$BASE_URL/update-log.txt?t=${System.currentTimeMillis()}"
         private const val UPDATER_UA = "GNSS-Link-Updater/1.3.0"
-
-        /** 精简界面缺失时的纯文本兜底页，不依赖任何脚本/样式 */
-        private const val FALLBACK_HTML =
-            "<!doctype html><meta charset='utf-8'>" +
-                "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
-                "<body style='font-family:sans-serif;padding:24px;line-height:1.6;color:#333'>" +
-                "<h3>GNSS Link</h3>" +
-                "<p>当前 WebView 内核版本较低，精简界面尚未安装。</p>" +
-                "<p>请升级系统 WebView 或安装完整版后再试。</p>" +
-                "</body>"
     }
 
     private fun open(url: String, readTimeout: Int = 20000): HttpURLConnection =
@@ -850,7 +1259,6 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                 conn.disconnect()
                 if (apk.length() < 1024) throw IllegalStateException("安装包不完整")
                 runOnUiThread {
-                    lastApkPath = apk.absolutePath
                     emit("update-progress", JSONObject().put("value", 100))
                     emit("update-ready", JSONObject()
                         .put("path", apk.absolutePath)
@@ -916,17 +1324,25 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     }
 
 
-    private fun reducedMotion() = Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    private fun nightModeOf(value: String): Int = when (value) {
+        "light" -> AppCompatDelegate.MODE_NIGHT_NO
+        "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+        else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+    }
 
-    @Suppress("DEPRECATION")
-    private fun applySystemTheme(dark: Boolean) {
-        val color = android.graphics.Color.parseColor(if (dark) "#101923" else "#eef3fa")
-        // setStatusBarColor / setNavigationBarColor 都是 API 21
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = color
-            window.navigationBarColor = color
-        }
-        window.decorView.systemUiVisibility = if (dark) 0 else android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+    /**
+     * 切换主题。
+     *
+     * Manifest 里声明了 configChanges=uiMode，系统不会自己重建 Activity，
+     * 所以改完 localNightMode 要手动 recreate；重建后 onCreate 会按新值加载
+     * values-night，颜色与主题一起换掉。
+     */
+    private fun applyThemeMode(value: String) {
+        Prefs.saveTheme(this, value)
+        val mode = nightModeOf(value)
+        if (delegate.localNightMode == mode) return
+        delegate.localNightMode = mode
+        recreate()
     }
 
     /** 应用屏幕方向偏好：车机系统常把界面锁成竖屏，这里给用户一个主动覆盖的入口 */
@@ -938,19 +1354,12 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
-    /** 横竖屏切换不重建 Activity，但要主动让 WebView 按新尺寸重排，媒体查询才会生效 */
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        emit("motion", reducedMotion())
-    }
-
     override fun onResume() {
         super.onResume()
         resumed = true
         publishChecks()
         syncOverlay()
         publishBtLabel()
-        emit("motion", reducedMotion())
         if (!LinkBus.status.running) {
             try { engine.release() } catch (_: Exception) { }
         }
@@ -1001,6 +1410,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("verifyLat", status.verifyLat)
             .put("verifyLon", status.verifyLon)
             .put("verifyDeltaM", status.verifyDeltaM)
+            .put("fixedName", status.fixedName)
+            .put("fixedOverride", status.fixedOverride)
             .put("probing", rateProbe.isRunning)
             .put("nmeaPort", status.nmeaPort)
             .put("nmeaClients", status.nmeaClients)
@@ -1010,6 +1421,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     override fun onLog(line: String) {
         logLines.addLast(line)
         while (logLines.size > 40) logLines.removeFirst()
+        emitLog()
+    }
+
+    private fun emitLog() {
         emit("log", JSONArray(logLines.toList()))
     }
 
@@ -1100,11 +1515,10 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     }
 
     private fun toast(message: String) {
-        if (ready) emit("notice", message)
-        else Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
-    /** 界面已换成原生，这里只报系统版本，便于排查车机差异 */
-    private fun webEngineLabel(): String = "原生 · Android ${Build.VERSION.RELEASE}"
+    /** 关于页「内核」一栏：直接报系统版本，便于排查车机 ROM 差异 */
+    private fun engineLabel(): String = "原生 · Android ${Build.VERSION.RELEASE}"
 
     /**
      * 切换后台保活。

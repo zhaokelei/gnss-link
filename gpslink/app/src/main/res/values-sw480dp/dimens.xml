@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  短边 ≥ 480dp：大屏手机横屏（1080x2340@480dpi 横屏短边仍 360，但
+  1920x1080@360dpi 等落在此档），以及 1280x720@240dpi 与 1920x1080@240dpi
+  的车机——这两类是车机里最常见的规格（density=1.5，短边 480dp）。
+-->
+<resources>
+    <dimen name="page_pad">24dp</dimen>
+    <dimen name="card_pad">20dp</dimen>
+    <dimen name="card_gap">16dp</dimen>
+
+    <dimen name="touch_min">48dp</dimen>
+    <dimen name="seg_height">46dp</dimen>
+
+    <dimen name="dock_bottom">96dp</dimen>
+    <dimen name="dock_item_h">64dp</dimen>
+
+    <dimen name="sky_height">280dp</dimen>
+    <dimen name="column_gap">16dp</dimen>
+
+    <dimen name="title_text">26sp</dimen>
+    <dimen name="body_text">14sp</dimen>
+    <dimen name="caption_text">12sp</dimen>
+</resources>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  短边 ≥ 600dp：1024x600@160dpi 车机（老款 8 寸，density=1.0，短边 600dp）、
+  7 寸平板竖屏。Material 3 把 600dp 定为「单栏 → 双栏」的分水岭。
+-->
+<resources>
+    <dimen name="page_pad">28dp</dimen>
+    <dimen name="card_pad">22dp</dimen>
+    <dimen name="card_gap">16dp</dimen>
+
+    <dimen name="touch_min">50dp</dimen>
+    <dimen name="seg_height">48dp</dimen>
+
+    <dimen name="dock_bottom">100dp</dimen>
+    <dimen name="dock_item_h">68dp</dimen>
+
+    <dimen name="sky_height">280dp</dimen>
+    <dimen name="column_gap">18dp</dimen>
+
+    <dimen name="title_text">28sp</dimen>
+    <dimen name="body_text">15sp</dimen>
+    <dimen name="caption_text">12sp</dimen>
+</resources>

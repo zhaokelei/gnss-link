@@ -26,6 +26,8 @@ import top.wxip.gpslink.core.LinkBus
 import top.wxip.gpslink.core.LocationFrame
 import top.wxip.gpslink.core.NetInfo
 import top.wxip.gpslink.core.Prefs
+import top.wxip.gpslink.core.PresetPlace
+import top.wxip.gpslink.core.Presets
 import top.wxip.gpslink.core.Protocol
 import top.wxip.gpslink.core.Role
 import top.wxip.gpslink.core.SatStats
@@ -58,11 +60,14 @@ class ReceiveService : Service() {
         const val ACTION_START = "top.wxip.gpslink.action.START_RECV"
         const val ACTION_SET_INJECT = "top.wxip.gpslink.action.SET_INJECT"
         const val ACTION_PLAY = "top.wxip.gpslink.action.PLAY_TRACK"
+        const val ACTION_FIXED = "top.wxip.gpslink.action.FIXED_POINT"
+        const val ACTION_CLEAR_FIXED = "top.wxip.gpslink.action.CLEAR_FIXED_POINT"
         const val EXTRA_PORT = "port"
         const val EXTRA_SID = "sid"
         const val EXTRA_INJECT = "inject"
         const val EXTRA_USE_BT = "use_bt"
         const val EXTRA_TRACK = "track_path"
+        const val EXTRA_FIXED_KEY = "fixed_key"
 
         /**
          * 回放一条轨迹：不绑端口、不连蓝牙，只按记录时的节奏把帧重新注入系统。
@@ -74,6 +79,35 @@ class ReceiveService : Service() {
                 putExtra(EXTRA_TRACK, path)
             }
             ContextCompat.startForegroundService(ctx, i)
+        }
+
+        /**
+         * 持续注入一个固定坐标。
+         *
+         * 用途是自检：打开任意导航 App，若蓝点停在这个位置，就说明
+         * 「模拟位置授权 → 测试 provider → 系统定位」整条链路是通的。
+         * 不依赖发送端，也不需要先连上对端。
+         */
+        fun injectFixed(ctx: Context, key: String) {
+            val i = Intent(ctx, ReceiveService::class.java).apply {
+                action = ACTION_FIXED
+                putExtra(EXTRA_FIXED_KEY, key)
+            }
+            ContextCompat.startForegroundService(ctx, i)
+        }
+
+        /**
+         * 取消固定点，回到「只注入发送端坐标」。
+         *
+         * 只在服务已经运行时才发这条指令：服务本来没起时既没有固定点可撤销，
+         * 也没必要为了一次取消把它拉起来。
+         */
+        fun clearFixed(ctx: Context) {
+            val i = Intent(ctx, ReceiveService::class.java).apply { action = ACTION_CLEAR_FIXED }
+            try {
+                ctx.startService(i)
+            } catch (_: Throwable) {
+            }
         }
 
         fun start(ctx: Context, port: Int, sid: String, injectMs: Int, useBt: Boolean) {
@@ -162,6 +196,22 @@ class ReceiveService : Service() {
     private var offsetLon = 0.0
     private var offsetSetAt = 0L
 
+    /**
+     * 固定点自检：非空时这一个点会持续注入，期间**暂停接收**发送端的数据。
+     *
+     * socket / 蓝牙连接本身不断（心跳照发，避免发送端误判离线），
+     * 但发送端发来的定位帧与卫星快照一律丢弃：不计帧、不注入、不刷坐标。
+     * 取消固定点后立刻恢复按发送端坐标注入，不需要重连。
+     */
+    private var fixedPlace: PresetPlace? = null
+    private var fixedTicker: Runnable? = null
+
+    /** 纯自检（没有接收会话）时用的回读定时器，start() 里的秒级 ticker 此时不跑 */
+    private var verifyTicker: Runnable? = null
+
+    /** 主线程定时器：固定点注入与取消都要能跨动作回调，不能每次新建 Handler */
+    private val handler by lazy { Handler(Looper.getMainLooper()) }
+
     private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
@@ -173,6 +223,17 @@ class ReceiveService : Service() {
         if (intent?.action == ACTION_PLAY) {
             startAsForeground()
             startPlayback(intent.getStringExtra(EXTRA_TRACK).orEmpty())
+            return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_FIXED) {
+            startAsForeground()
+            startFixed(intent.getStringExtra(EXTRA_FIXED_KEY).orEmpty())
+            return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_CLEAR_FIXED) {
+            clearFixed()
             return START_NOT_STICKY
         }
 
@@ -213,6 +274,17 @@ class ReceiveService : Service() {
             } catch (t: Throwable) {
                 LinkBus.log(t.message ?: "模拟位置初始化失败")
                 LinkBus.update { it.copy(running = false, role = Role.NONE) }
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            start()
+        } else if (socket == null && bt == null) {
+            // 正在做固定点自检（running 为真但没有任何传输通道）：
+            // 用户此时点「开始接收」，要把真正的接收会话补起来，而不是当作已在运行直接返回。
+            try {
+                engine.prepare()
+            } catch (t: Throwable) {
+                LinkBus.log(t.message ?: "模拟位置初始化失败")
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -390,10 +462,193 @@ class ReceiveService : Service() {
         h.postDelayed(step, 50)
     }
 
+    /**
+     * 持续注入一个固定坐标。
+     *
+     * 和轨迹回放的区别：只有一个点，无限循环，直到用户手动取消。
+     * 接收端已在跑时，注入期间**暂停接收**发送端数据：链路保持（心跳照发），
+     * 但 LOC/SAT 一律丢弃，不再计帧、不再刷坐标；取消后立刻恢复接收。
+     */
+    private fun startFixed(key: String) {
+        val place = Presets.find(key)
+        if (place == null) {
+            LinkBus.log("未知的预设地点：$key")
+            if (!running) {
+                LinkBus.update { it.copy(running = false, role = Role.NONE) }
+                stopSelf()
+            }
+            return
+        }
+        try {
+            engine.prepare()
+        } catch (t: Throwable) {
+            LinkBus.log(t.message ?: "模拟位置初始化失败")
+            if (!running) {
+                LinkBus.update { it.copy(running = false, role = Role.NONE) }
+                stopSelf()
+            }
+            return
+        }
+
+        // 换点时不重启服务，只替换目标，避免接收端被连带断开
+        fixedTicker?.let { handler.removeCallbacks(it) }
+        fixedPlace = place
+
+        if (!running) {
+            // 没有接收会话：就是纯自检，不开 socket
+            running = true
+            startedAt = System.currentTimeMillis()
+            acquireWakeLock()
+        }
+        val paused = socket != null || bt != null
+        if (paused) resetReceiveStats()
+        LinkBus.update {
+            it.copy(
+                running = true, role = Role.RECEIVER,
+                peer = place.name, online = true,
+                lat = place.lat, lon = place.lon, accuracy = 5f,
+                fixedName = place.name, fixedOverride = paused,
+                rateHz = if (paused) 0f else it.rateHz, lossPercent = 0f
+            )
+        }
+        LinkBus.log(
+            if (paused)
+                "固定点注入：${place.province} · ${place.name}（已暂停接收发送端数据，取消后恢复）"
+            else
+                "固定位置注入：${place.province} · ${place.name}"
+        )
+        updateNotification(
+            if (paused) "固定点注入中 · 接收已暂停" else "固定点注入中 · ${place.name}"
+        )
+
+        // 没有接收会话时，start() 的秒级 ticker 不存在，验证回读得自己起一个，
+        // 否则「系统回读与注入点相差几米」的判定永远不会刷新，界面上永远是「等待回读」。
+        if (socket == null && bt == null) startVerifyTicker()
+
+        val step = object : Runnable {
+            override fun run() {
+                if (!running || fixedPlace !== place) return
+                // 每次重新取时间戳：若停在同一个 Location 上太久，
+                // 部分系统会判定为过期定位，导航 App 反而不跟了
+                val frame = LocationFrame(
+                    lat = place.lat,
+                    lon = place.lon,
+                    altitude = 30.0,
+                    accuracy = 5f,
+                    speed = 0f,
+                    bearing = 0f,
+                    verticalAccuracy = 5f,
+                    speedAccuracy = 0.5f,
+                    bearingAccuracy = 90f,
+                    timeMs = System.currentTimeMillis(),
+                    srcAgeMs = 0L
+                )
+                lastFrame = frame
+                lastFrameElapsed = SystemClock.elapsedRealtime()
+                injectNow(frame)
+                LinkBus.update {
+                    it.copy(
+                        lat = place.lat, lon = place.lon,
+                        accuracy = 5f, altitude = 30.0,
+                        speed = 0f, bearing = 0f,
+                        fixCount = it.fixCount + 1, fixAgeMs = 0L
+                    )
+                }
+                handler.postDelayed(this, injectIntervalMs.toLong())
+            }
+        }
+        fixedTicker = step
+        handler.postDelayed(step, 50)
+    }
+
+    /**
+     * 纯自检模式下的回读刷新。
+     *
+     * 和接收会话里的 ticker 读的是同一组字段，但没有网络统计与源点年龄。
+     * 只做一件事：把系统里真实的定位回读出来和注入点比对，供界面判定注入是否生效。
+     */
+    private fun startVerifyTicker() {
+        verifyTicker?.let { handler.removeCallbacks(it) }
+        val step = object : Runnable {
+            override fun run() {
+                if (!running || fixedPlace == null) return
+                val rb = engine.readBack()
+                val inj = lastInjected
+                val delta = if (rb != null && inj != null) {
+                    Geo.distanceMeters(inj.lat, inj.lon, rb.lat, rb.lon)
+                } else -1.0
+                LinkBus.update {
+                    it.copy(
+                        verifyAvailable = rb != null && inj != null,
+                        verifyMock = rb?.isMock ?: false,
+                        verifyProvider = rb?.provider ?: "",
+                        verifyLat = rb?.lat ?: 0.0,
+                        verifyLon = rb?.lon ?: 0.0,
+                        verifyDeltaM = delta
+                    )
+                }
+                handler.postDelayed(this, 1000)
+            }
+        }
+        verifyTicker = step
+        handler.postDelayed(step, 1000)
+    }
+
+    private fun stopVerifyTicker() {
+        verifyTicker?.let { handler.removeCallbacks(it) }
+        verifyTicker = null
+    }
+
+    /** 取消固定点注入；接收端若还在跑就恢复接收发送端坐标，否则整体停下 */
+    private fun clearFixed() {
+        fixedTicker?.let { handler.removeCallbacks(it) }
+        fixedTicker = null
+        val was = fixedPlace ?: return
+        fixedPlace = null
+        lastFrame = null
+        lastFrameElapsed = 0
+        offsetLat = 0.0
+        offsetLon = 0.0
+
+        if (socket != null || bt != null) {
+            // 恢复接收前清掉暂停期间的统计口子，速率从下一帧重新计
+            resetReceiveStats()
+            stopVerifyTicker()
+            LinkBus.update {
+                it.copy(
+                    fixedName = "", fixedOverride = false, fixCount = 0, fixAgeMs = 0L,
+                    verifyAvailable = false, verifyMock = false, verifyDeltaM = -1.0
+                )
+            }
+            LinkBus.log("已取消固定点（${was.name}），恢复接收发送端坐标")
+            updateNotification("等待发送端…")
+        } else {
+            stopVerifyTicker()
+            LinkBus.log("已取消固定点（${was.name}）")
+            stopAll()
+            stopSelf()
+        }
+    }
+
+    /** 暂停/恢复接收时把丢包与速率的口子清零，避免把暂停期间的"丢帧"算进去 */
+    private fun resetReceiveStats() {
+        expectedSeq = -1L
+        windowCount = 0
+        lost = 0L
+        lastFrame = null
+        lastFrameElapsed = 0L
+        offsetLat = 0.0
+        offsetLon = 0.0
+        // 恢复后重新给发送端 5 秒窗口，否则第一条超时会立刻判成"发送端已断开"
+        lastPeerAt = System.currentTimeMillis()
+    }
+
     private fun start() {
         running = true
         startedAt = System.currentTimeMillis()
         acquireWakeLock()
+        // 接收会话自带秒级 ticker（含回读校验），自检用的那个就不需要了，避免双份 LinkBus 更新
+        stopVerifyTicker()
 
         if (useBt) {
             bt = BtReceiver(
@@ -420,10 +675,14 @@ class ReceiveService : Service() {
         }
 
         val ip = if (useBt) "" else NetInfo.localIpv4()
+        if (fixedPlace != null) resetReceiveStats()
         LinkBus.update {
             it.copy(
-                running = true, role = Role.RECEIVER, peer = "", online = false,
-                localIp = ip, rxCount = 0, txCount = 0
+                running = true, role = Role.RECEIVER, peer = fixedPlace?.name.orEmpty(),
+                online = fixedPlace != null,
+                localIp = ip, rxCount = 0, txCount = 0,
+                // 自检中点「开始接收」：固定点仍在注入，接收通道虽已建好但暂不处理数据
+                fixedOverride = fixedPlace != null
             )
         }
         if (useBt) {
@@ -431,6 +690,7 @@ class ReceiveService : Service() {
         } else {
             LinkBus.log("接收端启动（局域网）：监听 0.0.0.0:$port，房间码 $sid，本机 $ip")
         }
+        if (fixedPlace != null) LinkBus.log("固定点仍在注入，暂停接收发送端数据；取消固定点后自动恢复")
 
         if (!useBt) {
             thread = Thread({ loop() }, "gps-recv").also {
@@ -447,7 +707,9 @@ class ReceiveService : Service() {
                 windowCount = 0
                 val total = received + lost
                 val loss = if (total > 0) lost * 100f / total else 0f
-                val online = lastPeerAt > 0 && System.currentTimeMillis() - lastPeerAt < 6000
+                // 暂停接收期间不按帧判在线：链路心跳还在，发送端并未断开
+                val online = fixedPlace != null ||
+                    (lastPeerAt > 0 && System.currentTimeMillis() - lastPeerAt < 6000)
 
                 // 从系统读回当前定位，和刚注入的值比对 —— 证明注入真的生效了
                 val rb = engine.readBack()
@@ -478,7 +740,11 @@ class ReceiveService : Service() {
                         lossPercent = loss,
                         online = online,
                         rxCount = whoCount + received,
-                        peer = if (lastPeerAddr.isEmpty()) cur.peer else lastPeerAddr,
+                        peer = when {
+                            fixedPlace != null -> cur.peer
+                            lastPeerAddr.isEmpty() -> cur.peer
+                            else -> lastPeerAddr
+                        },
                         fixAgeMs = ageNow,
                         verifyAvailable = rb != null && inj != null,
                         verifyMock = rb?.isMock ?: false,
@@ -511,7 +777,7 @@ class ReceiveService : Service() {
         val injector = object : Runnable {
             override fun run() {
                 if (!running) return
-                if (injectIntervalMs < 1000) {
+                if (fixedPlace == null && injectIntervalMs < 1000) {
                     currentPosition()?.let { injectNow(it) }
                 }
                 h.postDelayed(this, injectIntervalMs.toLong().coerceAtLeast(50))
@@ -607,6 +873,10 @@ class ReceiveService : Service() {
 
     private fun stopAll() {
         running = false
+        fixedTicker?.let { handler.removeCallbacks(it) }
+        fixedTicker = null
+        stopVerifyTicker()
+        fixedPlace = null
         releaseWakeLock()
         try {
             socket?.close()
@@ -713,6 +983,9 @@ class ReceiveService : Service() {
             }
 
             Protocol.T_LOC -> {
+                // 固定点注入期间暂停接收：帧直接丢弃，不计帧、不回执、不刷坐标。
+                // 丢弃而不是缓存，是为了恢复时立刻用最新一帧，而不是回放积压的旧点。
+                if (fixedPlace != null) return
                 if (o.optString("sid") != sid) {
                     logOnce("房间码不匹配，已忽略来自 ${from?.hostAddress ?: "蓝牙"} 的数据")
                     return
@@ -738,7 +1011,7 @@ class ReceiveService : Service() {
                     LinkBus.log("收到第一帧定位：${from?.hostAddress ?: "蓝牙"}（seq=$seq）")
                 }
 
-                // 收到就立刻注入一次，保证零延迟；两次帧之间的补点由 injector 定时器负责
+                // 收到就立刻注入一次，保证零延迟；两次帧之间的补点由 injector 定时器负责。
                 injectNow(frame)
 
                 LinkBus.update {
@@ -774,6 +1047,8 @@ class ReceiveService : Service() {
             }
 
             Protocol.T_SAT -> {
+                // 同定位帧：暂停接收期间卫星快照也一并丢弃
+                if (fixedPlace != null) return
                 if (o.optString("sid") != sid) return
                 val list = SatWire.decode(o)
                 satStats = SatWire.stats(list)
@@ -811,6 +1086,8 @@ class ReceiveService : Service() {
     }
 
     private fun checkPeerAlive() {
+        // 固定点注入期间接收已暂停，不能因为"没收到帧"就把发送端判成断开
+        if (fixedPlace != null) return
         val now = System.currentTimeMillis()
         if (lastPeerAt > 0 && now - lastPeerAt > 5000) {
             lastPeerAt = 0

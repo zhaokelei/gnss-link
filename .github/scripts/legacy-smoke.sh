@@ -68,19 +68,31 @@ case "$focus" in
   *)        note "App 不在前台（可能崩溃或启动失败）"; fail=$((fail+1)) ;;
 esac
 
-echo "== 界面层级（WebView 是否真的有内容）=="
+echo "== 界面层级（原生界面是否真的画出了内容）=="
 adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1 || true
 adb pull /data/local/tmp/ui.xml "$OUT/ui-${API}.xml" >/dev/null 2>&1 || true
 if [ -f "$OUT/ui-${API}.xml" ]; then
-  note "界面节点数: $(grep -o "class=" "$OUT/ui-${API}.xml" | wc -l)"
+  nodes=$(grep -o "class=" "$OUT/ui-${API}.xml" | wc -l)
+  note "界面节点数: $nodes"
   note "可见文本: $(grep -o 'text="[^"]\+"' "$OUT/ui-${API}.xml" | head -12 | tr '\n' ' ')"
+  # 原生界面应由大量 View 组成；节点数过少说明布局没起来（白屏的另一种表现）
+  if [ "$nodes" -ge 20 ]; then
+    note "界面节点充足"; pass=$((pass+1))
+  else
+    note "界面节点过少，可能白屏"; fail=$((fail+1))
+  fi
 else
-  note "uiautomator dump 失败"
+  note "uiautomator dump 失败"; fail=$((fail+1))
 fi
 
-echo "== WebView 是否创建 =="
+echo "== 原生组件是否创建（WebView 已移除，不应再出现）=="
 wv=$(adb shell dumpsys window windows 2>/dev/null | grep -c "WebView" || true)
-note "窗口树里 WebView 出现次数: $wv"
+note "窗口树里 WebView 出现次数: $wv（原生界面应为 0）"
+if [ "$wv" -eq 0 ]; then
+  pass=$((pass+1))
+else
+  note "仍存在 WebView，说明界面上还留着 Web 时代的容器"; fail=$((fail+1))
+fi
 
 echo "== 崩溃检查 ==" 
 adb logcat -d 2>/dev/null | grep -aE "FATAL EXCEPTION|AndroidRuntime.*$PKG|E AndroidRuntime" | head -40 > "$OUT/crash.txt"

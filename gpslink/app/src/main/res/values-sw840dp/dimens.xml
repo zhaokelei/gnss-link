@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  短边 ≥ 840dp：Material 3 的 Expanded 档。对应 1280x720@160dpi、
+  1920x720@160dpi 这类 density=1.0 的车机（短边 720dp），以及平板横屏。
+  这类设备水平空间极充裕，改双栏布局并放大字号，降低行车时的辨识负担。
+-->
+<resources>
+    <dimen name="page_pad">32dp</dimen>
+    <dimen name="card_pad">24dp</dimen>
+    <dimen name="card_gap">18dp</dimen>
+
+    <dimen name="touch_min">52dp</dimen>
+    <dimen name="seg_height">50dp</dimen>
+
+    <dimen name="dock_bottom">104dp</dimen>
+    <dimen name="dock_item_h">72dp</dimen>
+
+    <dimen name="sky_height">320dp</dimen>
+    <dimen name="column_gap">20dp</dimen>
+
+    <dimen name="title_text">30sp</dimen>
+    <dimen name="body_text">16sp</dimen>
+    <dimen name="caption_text">13sp</dimen>
+</resources>

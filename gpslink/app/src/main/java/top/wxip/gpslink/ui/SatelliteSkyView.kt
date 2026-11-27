@@ -57,9 +57,32 @@ class SatelliteSkyView @JvmOverloads constructor(
         invalidate()
     }
 
+    /**
+     * 天空图必须保持正方形，但不能无视父容器的约束。
+     *
+     * 原实现直接 setMeasuredDimension(w, w)，横屏或车机上宽度可能上千 dp，
+     * 星图就会被撑成巨大的正方形并超出屏幕。这里取宽、高两个约束的方向与
+     * 上限，选可用空间的较小边作边长：父容器给固定高度时按高度，给 wrap_content
+     * 时按宽度，且都不会超过任一方向的上限。
+     */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val w = MeasureSpec.getSize(widthMeasureSpec)
-        setMeasuredDimension(w, w)
+        val wSize = MeasureSpec.getSize(widthMeasureSpec)
+        val wMode = MeasureSpec.getMode(widthMeasureSpec)
+        val hSize = MeasureSpec.getSize(heightMeasureSpec)
+        val hMode = MeasureSpec.getMode(heightMeasureSpec)
+
+        val widthLimit = if (wMode == MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else wSize
+        val heightLimit = if (hMode == MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else hSize
+
+        val side = when {
+            // 两个方向都有上限：取较小边，保证正方形不越界
+            heightLimit != Int.MAX_VALUE -> minOf(widthLimit, heightLimit)
+            // 只有宽度有上限：以此为准（竖屏常见，高度由内容决定）
+            widthLimit != Int.MAX_VALUE -> widthLimit
+            else -> (220 * resources.displayMetrics.density).toInt()
+        }
+        val finalSide = side.coerceAtLeast((80 * resources.displayMetrics.density).toInt())
+        setMeasuredDimension(finalSide, finalSide)
     }
 
     override fun onDraw(canvas: Canvas) {

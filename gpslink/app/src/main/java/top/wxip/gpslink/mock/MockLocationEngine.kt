@@ -30,11 +30,22 @@ class MockLocationEngine(private val context: Context) {
     companion object {
         private const val TAG = "MockEngine"
 
-        /** 同时顶替 gps 和 network，兼容只读 network 的应用（部分车机/平板） */
-        private val PROVIDERS = listOf(
-            LocationManager.GPS_PROVIDER,
-            LocationManager.NETWORK_PROVIDER
-        )
+        /** fused 从 Android 12 起才作为独立 provider 暴露给应用 */
+        private const val PROVIDER_FUSED = "fused"
+
+        /**
+         * 顶替 gps / network / fused 三个入口。
+         *
+         * addTestProvider 会「替换同名真实 provider」，所以注册同名的 gps 之后，
+         * 系统不再把本机 GPS 芯片的定位结果发给任何应用 —— 这是让有 GPS 的手机
+         * 放弃自己的定位、只听注入值的关键。fused 是 Android 12+ 的融合入口，
+         * 部分地图 App 直接读它，一并顶掉才不会漏。
+         */
+        private val PROVIDERS = buildList {
+            add(LocationManager.GPS_PROVIDER)
+            add(LocationManager.NETWORK_PROVIDER)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add(PROVIDER_FUSED)
+        }
     }
 
     private val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
