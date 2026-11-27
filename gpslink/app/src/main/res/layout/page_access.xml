@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:paddingBottom="@dimen/dock_bottom"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/page_pad"
+        android:paddingTop="28dp"
+        android:paddingRight="@dimen/page_pad">
+
+        <TextView
+            style="@style/GnssPageTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="设备授权" />
+
+        <TextView
+            style="@style/GnssPageSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="模拟位置、后台保活，以及开不了开发者选项时的命令行方案" />
+
+        <LinearLayout style="@style/GnssCard">
+
+            <LinearLayout style="@style/GnssSectionRow">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="授权状态" />
+
+                <TextView
+                    android:id="@+id/auth_tier"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_tag"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="4dp"
+                    android:text="检测中"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="系统版本" />
+                <TextView android:id="@+id/auth_android" style="@style/GnssKvValue" android:text="检测中" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="定位权限" />
+                <TextView android:id="@+id/check_location" style="@style/GnssKvValue" android:text="待检查" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="模拟位置" />
+                <TextView android:id="@+id/check_mock" style="@style/GnssKvValue" android:text="待检查" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="后台定位" />
+                <TextView android:id="@+id/check_background" style="@style/GnssKvValue" android:text="待检查" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="后台运行" />
+                <TextView android:id="@+id/check_battery" style="@style/GnssKvValue" android:text="待检查" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/auth_steps"
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="正在检查授权方式…" />
+
+            <TextView
+                android:id="@+id/auth_why"
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/warn"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_permissions"
+                    style="@style/GnssBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/touch_min"
+                    android:layout_weight="1"
+                    android:text="授予权限" />
+
+                <Button
+                    android:id="@+id/btn_mock"
+                    style="@style/GnssBtnPrimary"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/touch_min"
+                    android:layout_marginLeft="10dp"
+                    android:layout_weight="1"
+                    android:text="去授权" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_background"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginTop="10dp"
+                android:text="设为始终允许" />
+
+            <Button
+                android:id="@+id/btn_battery"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginTop="10dp"
+                android:text="设置电池白名单" />
+
+            <Button
+                android:id="@+id/btn_recheck"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginTop="10dp"
+                android:text="重新检查" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <LinearLayout style="@style/GnssSectionRow">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="命令行授权" />
+
+                <Button
+                    android:id="@+id/btn_copy_adb"
+                    style="@style/GnssBtn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:minHeight="40dp"
+                    android:text="复制命令"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/adb_note"
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="正在按系统版本生成对应命令…" />
+
+            <TextView
+                android:id="@+id/adb_cmd"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_field"
+                android:fontFamily="monospace"
+                android:padding="12dp"
+                android:text="adb shell appops set top.wxip.gpslink android:mock_location allow"
+                android:textColor="@color/log_text"
+                android:textSize="12sp" />
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="验证是否生效：" />
+
+            <TextView
+                android:id="@+id/adb_check"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_field"
+                android:fontFamily="monospace"
+                android:padding="12dp"
+                android:text="adb shell appops get top.wxip.gpslink android:mock_location"
+                android:textColor="@color/log_text"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

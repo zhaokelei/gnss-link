@@ -7,7 +7,9 @@
     <!-- 导航与页面 -->
     <string name="nav_link">连接</string>
     <string name="nav_sat">卫星</string>
+    <string name="nav_access">授权</string>
     <string name="nav_settings">设置</string>
+    <string name="nav_about">关于</string>
     <string name="page_link_title">定位共享</string>
     <string name="page_link_subtitle">将手机定位共享到平板或车机。</string>
     <string name="page_sat_title">卫星观测</string>

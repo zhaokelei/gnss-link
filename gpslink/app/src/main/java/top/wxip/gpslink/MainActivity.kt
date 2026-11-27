@@ -14,15 +14,21 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.RadioGroup
+import android.widget.TextView
+import androidx.appcompat.widget.SwitchCompat
+import top.wxip.gpslink.ui.SatelliteBarsView
+import top.wxip.gpslink.ui.SatelliteSkyView
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
-import android.webkit.JavascriptInterface
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -44,7 +50,6 @@ import kotlin.concurrent.thread
 
 /** Local-only presentation host. Location and transport remain in foreground services. */
 class MainActivity : AppCompatActivity(), LinkBus.Observer {
-    private lateinit var web: WebView
     private val engine by lazy { MockLocationEngine(this) }
     private val rateProbe by lazy { RateProbe(this) }
     private val satMonitor by lazy { SatelliteMonitor(this) { localSats = it; publishSatellites() } }
@@ -88,121 +93,385 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         useBt = Prefs.loadUseBt(this)
         keepAlive = Prefs.loadKeepAlive(this)
         btMac = Prefs.loadBtMac(this)
-        web = WebView(this)
-        setContentView(web)
+        // 原生界面：布局由 res/layout 提供，所有状态通过 render() 直接写控件
+        setContentView(R.layout.activity_main)
         applyOrientation(Prefs.loadOrientation(this))
-        web.settings.javaScriptEnabled = true
-        web.settings.domStorageEnabled = true
-        web.settings.setSupportZoom(false)
-        web.settings.builtInZoomControls = false
-        web.settings.displayZoomControls = false
-        web.settings.textZoom = 100
-        // 尊重 viewport meta 的 device-width，横屏车机上按实际宽度排版而不是固定 980px
-        web.settings.useWideViewPort = true
-        web.settings.loadWithOverviewMode = true
-        web.settings.allowFileAccess = false
-        web.settings.allowContentAccess = false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            web.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-        }
-        web.addJavascriptInterface(Bridge(), "Android")
-        web.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
-
-            // API 24 以下只会回调 String 版
-            @Suppress("DEPRECATION", "OverridingDeprecatedMember")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
-
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                serveAsset(request.url.toString())
-
-            // API 21 以下只会回调 String 版
-            @Suppress("DEPRECATION", "OverridingDeprecatedMember")
-            override fun shouldInterceptRequest(view: WebView, url: String): WebResourceResponse? =
-                serveAsset(url)
-        }
-        loadStartPage()
+        bindUi()
+        ready = true
         LinkBus.add(this)
+        // 原生界面没有 ready 握手，这里主动推一次首屏数据
+        publishConfig()
+        publishChecks()
+        publishTracks()
+        publishBtLabel()
+        onStatus(LinkBus.status)
+        publishSatellites()
     }
 
-    /**
-     * 把 `https://appassets.androidplatform.net/...` 的请求映射回 assets 目录。
-     *
-     * 完整界面在 `ui/`，低内核用的精简界面在 `ui-lite/`，两边都按相对路径引用资源，
-     * 所以这里要放行两套前缀。返回 null 表示不拦截、交给 WebView 自己处理。
-     */
-    private fun serveAsset(rawUrl: String): WebResourceResponse? {
-        val uri = Uri.parse(rawUrl)
-        if (uri.scheme != "https" || uri.host != "appassets.androidplatform.net") return null
-        val fullPath = uri.path.orEmpty()
-        val dir = when {
-            fullPath.startsWith("/ui-lite/") -> "ui-lite"
-            fullPath.startsWith("/ui/") -> "ui"
-            else -> return buildResponse("text/plain", 403, "Forbidden", "".byteInputStream())
-        }
-        val path = fullPath.removePrefix("/$dir/")
-        if (!path.matches(Regex("[a-zA-Z0-9._-]+"))) {
-            return buildResponse("text/plain", 403, "Forbidden", "".byteInputStream())
-        }
-        val mime = when (path.substringAfterLast('.')) {
-            "html" -> "text/html"
-            "css" -> "text/css"
-            "js", "mjs" -> "application/javascript"
-            else -> "application/octet-stream"
-        }
-        return try {
-            buildResponse(mime, 200, "OK", assets.open("$dir/$path"))
-        } catch (_: Exception) {
-            buildResponse("text/plain", 404, "Not Found", "".byteInputStream())
-        }
+    // ---------------------------------------------------------------- 原生界面
+
+    private var uiRole = "sender"
+    private var uiBinding = false
+    private var lastSatList: List<SatInfo> = emptyList()
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private var uiFirstTrack = ""
+
+    /** 把界面事件转成原本的桥接动作，业务逻辑一行都不用改 */
+    private fun act(action: String, data: JSONObject = JSONObject()) {
+        Bridge().dispatch(action, data.toString())
     }
 
-    /** 只用 3 参构造：它在 API 1 就有。
-     *  6 参构造是 API 21 才加的，即使写在 SDK_INT 判断里，Dalvik 校验阶段也会因为
-     *  「引用了不存在的方法」把整个方法标记为不可用（日志里的
-     *  `Could not find method android.webkit.WebResourceResponse.<init>`），
-     *  结果是 4.4 上连页面都加载不出来。本地 assets 不需要状态码，直接给 200 语义。 */
-    private fun buildResponse(
-        mime: String,
-        code: Int,
-        reason: String,
-        data: java.io.InputStream
-    ): WebResourceResponse = WebResourceResponse(mime, "UTF-8", data)
+    private fun bindUi() {
+        // 底部导航
+        mapOf(
+            "link" to R.id.dock_link,
+            "sat" to R.id.dock_sat,
+            "access" to R.id.dock_access,
+            "settings" to R.id.dock_settings,
+            "about" to R.id.dock_about
+        ).forEach { (key, id) -> findViewById<LinearLayout>(id).setOnClickListener { showPage(key) } }
 
-    /**
-     * 按 WebView 内核版本选择界面。
-     *
-     * 阈值 Chrome 80：`>= 80` 用现有的完整界面 `ui/`，`< 80` 或解析不到版本时用精简界面
-     * `ui-lite/`。精简界面由另一位同事维护，可能暂时为空 —— 找不到时给一个纯文本兜底页，
-     * 保证不会白屏或崩溃。
-     */
-    private fun loadStartPage() {
-        val ua = try { web.settings.userAgentString } catch (_: Throwable) { null }
-        val chrome = ua?.let { Regex("Chrome/(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }
-        val useLite = chrome == null || chrome < 80
-        Log.i(
-            TAG,
-            "WebView UA Chrome=${chrome ?: "unknown"} -> ${if (useLite) "ui-lite(精简界面)" else "ui(完整界面)"}"
+        // 连接页
+        findViewById<RadioGroup>(R.id.role).setOnCheckedChangeListener { _, id ->
+            if (!uiBinding) {
+                uiRole = if (id == R.id.role_receive) "receiver" else "sender"
+                refreshRoleUi()
+            }
+        }
+        findViewById<Button>(R.id.start).setOnClickListener {
+            if (!LinkBus.status.running) act("start", currentConfig())
+        }
+        findViewById<Button>(R.id.stop).setOnClickListener { act("stop") }
+
+        // 授权页
+        findViewById<Button>(R.id.btn_permissions).setOnClickListener { act("permissions") }
+        findViewById<Button>(R.id.btn_mock).setOnClickListener { act("mock") }
+        findViewById<Button>(R.id.btn_background).setOnClickListener { act("background") }
+        findViewById<Button>(R.id.btn_battery).setOnClickListener { act("battery") }
+        findViewById<Button>(R.id.btn_recheck).setOnClickListener { act("recheck") }
+        findViewById<Button>(R.id.btn_copy_adb).setOnClickListener {
+            act("copy", JSONObject().put("text", findViewById<TextView>(R.id.adb_cmd).text.toString()))
+        }
+
+        // 设置页
+        findViewById<RadioGroup>(R.id.mode).setOnCheckedChangeListener { _, id ->
+            if (!uiBinding) applyModeUi(id == R.id.mode_bt)
+        }
+        findViewById<Button>(R.id.btn_pick_bt).setOnClickListener { act("pick-bt") }
+        findViewById<Button>(R.id.btn_track_play).setOnClickListener {
+            if (uiFirstTrack.isBlank()) toast("暂无可回放的轨迹")
+            else act("track-play", JSONObject().put("path", uiFirstTrack))
+        }
+        findViewById<SwitchCompat>(R.id.keepalive).setOnCheckedChangeListener { _, on ->
+            if (!uiBinding) act("keepalive", JSONObject().put("enabled", on))
+        }
+        findViewById<Button>(R.id.btn_overlay).setOnClickListener { act("overlay-permission") }
+        findViewById<SwitchCompat>(R.id.autostart).setOnCheckedChangeListener { _, on ->
+            if (!uiBinding) act("autostart", JSONObject().put("enabled", on))
+        }
+        findViewById<SwitchCompat>(R.id.track_toggle).setOnCheckedChangeListener { _, on ->
+            if (!uiBinding) act("track-toggle", JSONObject().put("enabled", on))
+        }
+        findViewById<SwitchCompat>(R.id.nmea).setOnCheckedChangeListener { _, on ->
+            if (!uiBinding) act(
+                "nmea",
+                JSONObject().put("enabled", on)
+                    .put("port", findViewById<EditText>(R.id.nmea_port).text.toString().toIntOrNull() ?: 10110)
+            )
+        }
+
+        // 关于页
+        findViewById<Button>(R.id.btn_check_update).setOnClickListener { act("check-update") }
+        findViewById<Button>(R.id.btn_view_log).setOnClickListener { act("fetch-log") }
+        findViewById<Button>(R.id.btn_github).setOnClickListener {
+            act("open-url", JSONObject().put("url", "https://github.com/zhaokelei/gnss-link"))
+        }
+        findViewById<Button>(R.id.btn_home).setOnClickListener {
+            act("open-url", JSONObject().put("url", "https://www.iqiq.cn"))
+        }
+
+        showPage("link")
+    }
+
+    private fun showPage(key: String) {
+        val pages = mapOf(
+            "link" to R.id.page_link,
+            "sat" to R.id.page_sat,
+            "access" to R.id.page_access,
+            "settings" to R.id.page_settings,
+            "about" to R.id.page_about
         )
-        if (useLite) {
-            val hasLite = try {
-                assets.open("ui-lite/index.html").use { true }
-            } catch (_: Throwable) {
-                false
+        val docks = mapOf(
+            "link" to R.id.dock_link,
+            "sat" to R.id.dock_sat,
+            "access" to R.id.dock_access,
+            "settings" to R.id.dock_settings,
+            "about" to R.id.dock_about
+        )
+        pages.forEach { (k, id) ->
+            findViewById<View>(id).visibility = if (k == key) View.VISIBLE else View.GONE
+        }
+        docks.forEach { (k, id) -> findViewById<LinearLayout>(id).isSelected = k == key }
+    }
+
+    private fun setSwitch(id: Int, on: Boolean) {
+        findViewById<SwitchCompat>(id).isChecked = on
+    }
+
+    private fun currentConfig(): JSONObject = JSONObject()
+        .put("sid", findViewById<EditText>(R.id.sid).text.toString().trim().ifBlank { "8888" })
+        .put("port", findViewById<EditText>(R.id.port).text.toString().toIntOrNull() ?: Protocol.DEFAULT_PORT)
+        .put("host", findViewById<EditText>(R.id.host).text.toString().trim())
+        .put("useBt", findViewById<RadioGroup>(R.id.mode).checkedRadioButtonId == R.id.mode_bt)
+        .put(
+            "intervalMs",
+            when (findViewById<RadioGroup>(R.id.sample).checkedRadioButtonId) {
+                R.id.sample_500 -> 500
+                R.id.sample_200 -> 200
+                R.id.sample_100 -> 100
+                else -> 1000
             }
-            if (!hasLite) {
-                Log.w(TAG, "assets/ui-lite/index.html 不存在，显示兜底页")
-                web.loadDataWithBaseURL(null, FALLBACK_HTML, "text/html", "utf-8", null)
-            } else {
-                web.loadUrl("https://appassets.androidplatform.net/ui-lite/index.html")
+        )
+        .put(
+            "injectMs",
+            when (findViewById<RadioGroup>(R.id.inject).checkedRadioButtonId) {
+                R.id.inject_1000 -> 1000
+                R.id.inject_200 -> 200
+                else -> 100
             }
-        } else {
-            web.loadUrl("https://appassets.androidplatform.net/ui/index.html")
+        )
+        .put("role", uiRole)
+
+    private fun refreshRoleUi() {
+        val receive = uiRole == "receiver"
+        findViewById<TextView>(R.id.action_title).text =
+            if (receive) "接收另一台手机的定位" else "共享此设备的位置"
+        findViewById<TextView>(R.id.action_hint).text = if (receive)
+            "需先把本机设为模拟位置应用，详见授权页。"
+        else
+            "两台设备连接同一 Wi-Fi 或热点，并使用相同房间码。"
+        findViewById<Button>(R.id.start).text = if (receive) "开始接收" else "开始共享"
+        findViewById<Button>(R.id.stop).text = if (receive) "停止接收" else "停止共享"
+        findViewById<TextView>(R.id.link_peer).text =
+            if (receive) "另一台手机" else "另一台设备"
+    }
+
+    private fun applyModeUi(bt: Boolean) {
+        findViewById<LinearLayout>(R.id.bt_row).visibility = if (bt) View.VISIBLE else View.GONE
+        findViewById<Button>(R.id.btn_pick_bt).visibility = if (bt) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.link_transport).text =
+            if (bt) "蓝牙 RFCOMM" else "UDP / " + findViewById<EditText>(R.id.port).text.toString()
+    }
+
+    private fun showUpdateDialog(tag: String, latest: String, sizeMb: Double) {
+        if (isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle("发现新版本 v" + latest)
+            .setMessage("安装包 %.1f MB，下载后可直接覆盖安装。".format(sizeMb))
+            .setPositiveButton("立即更新") { _, _ -> act("download-update") }
+            .setNeutralButton("跳过此版本") { _, _ ->
+                act("skip-version", JSONObject().put("tag", tag))
+            }
+            .setNegativeButton("稍后", null)
+            .show()
+    }
+
+    private fun mark(id: Int, ok: Boolean) {
+        findViewById<TextView>(id).apply {
+            text = if (ok) "已就绪" else "待设置"
+            setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (ok) R.color.ok else R.color.text_secondary
+                )
+            )
+        }
+    }
+
+    private fun render(type: String, data: Any) {
+        val d = data as? JSONObject
+        when (type) {
+            "init" -> {
+                if (d == null) return
+                uiBinding = true
+                findViewById<EditText>(R.id.sid).setText(d.optString("sid", "8888"))
+                findViewById<EditText>(R.id.port).setText(d.optInt("port", Protocol.DEFAULT_PORT).toString())
+                findViewById<EditText>(R.id.host).setText(d.optString("host"))
+                findViewById<RadioGroup>(R.id.mode).check(
+                    if (d.optBoolean("useBt")) R.id.mode_bt else R.id.mode_lan
+                )
+                findViewById<RadioGroup>(R.id.sample).check(
+                    when (d.optInt("intervalMs", Protocol.DEFAULT_INTERVAL_MS)) {
+                        500 -> R.id.sample_500
+                        200 -> R.id.sample_200
+                        100 -> R.id.sample_100
+                        else -> R.id.sample_1000
+                    }
+                )
+                findViewById<RadioGroup>(R.id.inject).check(
+                    when (d.optInt("injectMs", Protocol.DEFAULT_INJECT_MS)) {
+                        1000 -> R.id.inject_1000
+                        200 -> R.id.inject_200
+                        else -> R.id.inject_100
+                    }
+                )
+                setSwitch(R.id.autostart, d.optBoolean("autoStart"))
+                setSwitch(R.id.track_toggle, d.optBoolean("trackEnabled"))
+                setSwitch(R.id.nmea, d.optBoolean("nmeaEnabled"))
+                findViewById<EditText>(R.id.nmea_port)
+                    .setText(d.optInt("nmeaPort", Protocol.DEFAULT_NMEA_PORT).toString())
+                findViewById<TextView>(R.id.about_version).text = "v" + d.optString("version")
+                findViewById<TextView>(R.id.about_engine).text = d.optString("engine", "原生界面")
+                findViewById<TextView>(R.id.link_room).text = d.optString("sid", "8888")
+                findViewById<TextView>(R.id.link_transport).text =
+                    if (d.optBoolean("useBt")) "蓝牙 RFCOMM" else "UDP / " + d.optInt("port")
+                applyModeUi(d.optBoolean("useBt"))
+                uiBinding = false
+                refreshRoleUi()
+            }
+            "checks" -> {
+                if (d == null) return
+                mark(R.id.check_location, d.optBoolean("location"))
+                mark(R.id.check_mock, d.optBoolean("mock"))
+                mark(R.id.check_background, d.optBoolean("background"))
+                mark(R.id.check_battery, d.optBoolean("battery"))
+                val alive = d.optBoolean("keepAlive")
+                val overlay = d.optBoolean("overlay")
+                findViewById<TextView>(R.id.keepalive_state).text = if (alive) "已开启" else "未开启"
+                findViewById<Button>(R.id.btn_overlay).visibility =
+                    if (overlay) View.GONE else View.VISIBLE
+                findViewById<TextView>(R.id.keepalive_hint).text = when {
+                    !overlay -> "尚未授予悬浮窗权限，当前保活只依赖常驻通知。"
+                    alive -> "退到后台时角落会出现可拖动的小标签，点一下回到应用。"
+                    else -> "开启后可在后台保持运行，前台使用时不会出现悬浮窗。"
+                }
+            }
+            "access" -> {
+                if (d == null) return
+                findViewById<TextView>(R.id.auth_android).text = d.optString("androidName")
+                findViewById<TextView>(R.id.auth_tier).text =
+                    if (d.optString("tier") == "legacy") "系统开关" else "AppOps"
+                findViewById<TextView>(R.id.auth_steps).text = d.optString("steps")
+                val why = d.optString("why")
+                findViewById<TextView>(R.id.auth_why).apply {
+                    text = why
+                    visibility = if (why.isBlank()) View.GONE else View.VISIBLE
+                }
+                findViewById<TextView>(R.id.adb_note).text =
+                    "命令可复制到电脑终端执行，效果等同手动授权且重启不丢。"
+                findViewById<TextView>(R.id.adb_cmd).text = d.optString("adb")
+                findViewById<TextView>(R.id.adb_check).text = d.optString("adbCheck")
+            }
+            "status" -> {
+                if (d == null) return
+                val running = d.optBoolean("running")
+                findViewById<Button>(R.id.start).isEnabled = !running
+                findViewById<Button>(R.id.stop).isEnabled = running
+                findViewById<TextView>(R.id.state_badge).text = when {
+                    !running -> "未运行"
+                    d.optString("role") == "RECEIVER" && !d.optBoolean("online") -> "等待"
+                    else -> "运行中"
+                }
+                findViewById<TextView>(R.id.link_ip).text = d.optString("localIp").ifBlank { "—" }
+                findViewById<TextView>(R.id.link_peer).text = d.optString("peer").ifBlank {
+                    if (d.optString("role") == "RECEIVER") "另一台手机" else "另一台设备"
+                }
+                val lat = d.optDouble("lat", 0.0)
+                val lon = d.optDouble("lon", 0.0)
+                findViewById<TextView>(R.id.fix_coord).text =
+                    if (lat == 0.0 && lon == 0.0) "—" else "%.5f, %.5f".format(lat, lon)
+                findViewById<TextView>(R.id.fix_rate).text =
+                    "%.1f Hz · ±%.0fm".format(
+                        d.optDouble("rateHz", 0.0),
+                        d.optDouble("accuracy", 0.0)
+                    )
+                findViewById<TextView>(R.id.fix_count).text = d.optLong("fixCount", 0L).toString()
+                val nmeaPort = d.optInt("nmeaPort", 0)
+                findViewById<TextView>(R.id.nmea_address).text = if (nmeaPort > 0)
+                    "监听中：" + d.optString("localIp") + ":" + nmeaPort
+                else
+                    "开始共享后显示连接地址"
+            }
+            "satellites" -> {
+                findViewById<SatelliteSkyView>(R.id.sky).setSatellites(lastSatList)
+                findViewById<SatelliteBarsView>(R.id.bars).setSatellites(lastSatList)
+                findViewById<TextView>(R.id.sat_visible).text = lastSatList.size.toString()
+                findViewById<TextView>(R.id.sat_used).text = lastSatList.count { it.usedInFix }.toString()
+                val avg = if (lastSatList.isEmpty()) 0.0
+                else lastSatList.sumOf { it.cn0.toDouble() } / lastSatList.size
+                findViewById<TextView>(R.id.sat_snr).text =
+                    if (lastSatList.isEmpty()) "—" else "%.1f dB-Hz".format(avg)
+            }
+            "log" -> {
+                val lines = (data as? JSONArray)?.let { arr ->
+                    (0 until arr.length()).map { arr.optString(it) }
+                } ?: emptyList()
+                findViewById<TextView>(R.id.logs).text =
+                    if (lines.isEmpty()) "暂无日志" else lines.takeLast(80).joinToString("\n")
+            }
+            "tracks" -> {
+                val arr = d?.optJSONArray("items") ?: (data as? JSONArray)
+                val names = ArrayList<String>()
+                if (arr != null) {
+                    for (i in 0 until arr.length()) {
+                        val o = arr.optJSONObject(i) ?: continue
+                        names.add(o.optString("name") + " · " + o.optInt("points") + " 点")
+                    }
+                }
+                uiFirstTrack = ""
+                if (arr != null) {
+                    for (i in 0 until arr.length()) {
+                        val o = arr.optJSONObject(i) ?: continue
+                        uiFirstTrack = o.optString("path")
+                        if (uiFirstTrack.isNotBlank()) break
+                    }
+                }
+                findViewById<TextView>(R.id.track_list).text =
+                    if (names.isEmpty()) "暂无轨迹" else names.joinToString("\n")
+            }
+            "bt" -> findViewById<TextView>(R.id.bt_label).text = data.toString()
+            "notice" -> toast(data.toString())
+            "update-check" -> {
+                if (d == null) return
+                val latest = d.optString("latest")
+                val cur = d.optString("current")
+                if (latest.isBlank() || latest == cur) {
+                    findViewById<TextView>(R.id.update_hint).text = "已是最新版本 v" + cur
+                } else {
+                    findViewById<TextView>(R.id.update_hint).text = "发现新版本 v" + latest
+                    showUpdateDialog(d.optString("tag"), latest, d.optLong("size") / 1048576.0)
+                }
+            }
+            "update-progress" -> {
+                val pct = d?.optInt("value", 0) ?: 0
+                findViewById<TextView>(R.id.update_hint).text = "正在下载 $pct%"
+            }
+            "update-ready" -> {
+                val path = d?.optString("path").orEmpty()
+                findViewById<TextView>(R.id.update_hint).text = "下载完成，可以安装"
+                if (isFinishing || isDestroyed) return
+                AlertDialog.Builder(this)
+                    .setTitle("下载完成")
+                    .setMessage("立即安装新版本？")
+                    .setPositiveButton("安装") { _, _ -> installUpdate(path) }
+                    .setNegativeButton("取消", null)
+                    .show()
+            }
+            "update-log" -> {
+                val text = d?.optString("text").orEmpty()
+                if (text.isNotBlank() && !isFinishing && !isDestroyed) {
+                    AlertDialog.Builder(this)
+                        .setTitle("更新日志")
+                        .setMessage(text.take(2000))
+                        .setPositiveButton("关闭", null)
+                        .show()
+                }
+            }
+            else -> Unit
         }
     }
 
     private inner class Bridge {
-        @JavascriptInterface
         fun dispatch(action: String, payload: String) {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
@@ -267,16 +536,14 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
+    /** 唯一的界面出口：所有状态都从这里写进原生控件 */
     private fun emit(type: String, data: Any) {
         if (!ready || isDestroyed) return
-        val encoded = JSONObject().put("type", type).put("data", data)
-        // 可选链 `?.` 需要 Chrome 80，低内核会整条脚本语法错误，改成 && 短路
-        // 必须用 ES5 写法：低版本 WebView（Chromium 30）不认箭头函数与 const，
-        // 一旦语法错误，原生发过去的所有事件都会被静默丢弃，界面停在空态。
-        web.evaluateJavascript(
-            "(function(){var e=$encoded;if(window.GnssUI){window.GnssUI.receive(e.type,e.data)}})()",
-            null
-        )
+        try {
+            render(type, data)
+        } catch (t: Throwable) {
+            Log.w(TAG, "render $type failed", t)
+        }
     }
 
     private fun publishConfig() {
@@ -648,14 +915,6 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         }
     }
 
-    /** 返回键先交给 WebView 模态：打开则取消，未打开才退出 Activity */
-    @Deprecated("Deprecated in Java")
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        web.evaluateJavascript(
-            "Boolean(window.GnssUI && window.GnssUI.handleBack && window.GnssUI.handleBack())"
-        ) { result -> if (result != "true") super.onBackPressed() }
-    }
 
     private fun reducedMotion() = Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
 
@@ -682,7 +941,6 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     /** 横竖屏切换不重建 Activity，但要主动让 WebView 按新尺寸重排，媒体查询才会生效 */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        web.requestLayout()
         emit("motion", reducedMotion())
     }
 
@@ -697,14 +955,12 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             try { engine.release() } catch (_: Exception) { }
         }
         if (hasLocationPermission()) satMonitor.start()
-        web.onResume()
     }
 
     override fun onPause() {
         resumed = false
         satMonitor.stop()
         syncOverlay()
-        web.onPause()
         super.onPause()
     }
 
@@ -712,10 +968,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         LinkBus.remove(this)
         satMonitor.stop()
         rateProbe.stop()
-        web.removeCallbacks(remoteExpiry)
+        uiHandler.removeCallbacks(remoteExpiry)
         ready = false
-        web.removeJavascriptInterface("Android")
-        web.destroy()
         super.onDestroy()
     }
 
@@ -764,14 +1018,15 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         remoteFrom = from
         remoteAt = SystemClock.elapsedRealtime()
         publishSatellites()
-        web.removeCallbacks(remoteExpiry)
-        web.postDelayed(remoteExpiry, 6001)
+        uiHandler.removeCallbacks(remoteExpiry)
+        uiHandler.postDelayed(remoteExpiry, 6001)
     }
 
     private fun publishSatellites() {
         val receiver = LinkBus.status.role == Role.RECEIVER
         val fresh = SystemClock.elapsedRealtime() - remoteAt < 6000
         val items = if (receiver) { if (fresh) remoteSats else emptyList() } else localSats
+        lastSatList = items
         val array = JSONArray()
         items.forEach { sat ->
             array.put(JSONObject().put("svid", sat.svid).put("name", Gnss.short(sat.constellation))
@@ -848,28 +1103,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         if (ready) emit("notice", message)
         else Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
-    /** 形如 "Chrome 116 · WebView 116.0.5845.163"，取不到就如实说不知道 */
-    private fun webEngineLabel(): String {
-        val chrome = try {
-            Regex("Chrome/(\\d+)").find(web.settings.userAgentString)
-                ?.groupValues?.get(1)
-        } catch (_: Throwable) {
-            null
-        }
-        val pkg = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                android.webkit.WebView.getCurrentWebViewPackage()?.versionName
-            } catch (_: Throwable) {
-                null
-            }
-        } else {
-            null
-        }
-        return listOfNotNull(
-            chrome?.let { "Chrome $it" },
-            pkg?.let { it }
-        ).joinToString(" · ").ifBlank { "未知" }
-    }
+    /** 界面已换成原生，这里只报系统版本，便于排查车机差异 */
+    private fun webEngineLabel(): String = "原生 · Android ${Build.VERSION.RELEASE}"
 
     /**
      * 切换后台保活。

@@ -1,1359 +1,145 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 原生主界面：五页容器 + 悬浮底部导航。全部控件自绘，不依赖浏览器默认样式。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_app"
-    tools:context=".MainActivity">
+    android:fitsSystemWindows="true">
 
-    <ScrollView
-        android:id="@+id/scroll"
+    <FrameLayout
+        android:id="@+id/pages"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:fillViewport="true"
-        android:paddingBottom="104dp">
+        android:layout_height="match_parent">
+
+        <include android:id="@+id/page_link" layout="@layout/page_link" />
+
+        <include
+            android:id="@+id/page_sat"
+            layout="@layout/page_sat"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/page_access"
+            layout="@layout/page_access"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/page_settings"
+            layout="@layout/page_settings"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/page_about"
+            layout="@layout/page_about"
+            android:visibility="gone" />
+    </FrameLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:paddingTop="28dp">
-
-            <!-- 顶部品牌栏 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:background="@drawable/bg_nav"
-                android:elevation="2dp"
-                android:gravity="center_vertical"
-                android:paddingStart="12dp"
-                android:paddingEnd="10dp">
-
-                <FrameLayout
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:background="@drawable/bg_logo">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
-                        android:contentDescription="@string/app_name"
-                        android:src="@drawable/ic_link" />
-                </FrameLayout>
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:text="@string/app_name"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <ImageButton
-                    android:id="@+id/btn_theme"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/theme_toggle"
-                    android:src="@drawable/ic_sun" />
-            </LinearLayout>
-
-            <!-- ==================== 连接页 ==================== -->
-            <LinearLayout
-                android:id="@+id/page_link"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="26dp"
-                    android:text="@string/page_link_title"
-                    style="@style/TextTitle" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/page_link_subtitle"
-                        style="@style/TextLabel" />
-
-                    <TextView
-                        android:id="@+id/tv_status"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_pill"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="5dp"
-                        android:text="@string/status_idle"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <!-- 角色示意卡片 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <com.google.android.material.button.MaterialButtonToggleGroup
-                            android:id="@+id/group_role"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            app:selectionRequired="true"
-                            app:singleSelection="true">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_role_send"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="44dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="@string/role_send"
-                                android:textSize="13sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="22dp"
-                                android:textColor="@color/seg_text" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_role_receive"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="44dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="@string/role_receive"
-                                android:textSize="13sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="22dp"
-                                android:textColor="@color/seg_text" />
-                        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-                        <!-- 设备示意 -->
-                        <FrameLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="160dp"
-                            android:layout_marginTop="10dp">
-
-                            <ImageView
-                                android:layout_width="220dp"
-                                android:layout_height="220dp"
-                                android:layout_gravity="center"
-                                android:contentDescription="@null"
-                                android:src="@drawable/ic_radar_deco" />
-
-                            <LinearLayout
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:gravity="center"
-                                android:orientation="horizontal">
-
-                                <FrameLayout
-                                    android:layout_width="56dp"
-                                    android:layout_height="56dp"
-                                    android:background="@drawable/bg_device">
-
-                                    <ImageView
-                                        android:layout_width="28dp"
-                                        android:layout_height="28dp"
-                                        android:layout_gravity="center"
-                                        android:contentDescription="@null"
-                                        android:src="@drawable/ic_phone" />
-                                </FrameLayout>
-
-                                <FrameLayout
-                                    android:layout_width="52dp"
-                                    android:layout_height="52dp"
-                                    android:layout_marginStart="24dp"
-                                    android:layout_marginEnd="24dp"
-                                    android:background="@drawable/bg_pin_circle">
-
-                                    <ImageView
-                                        android:layout_width="26dp"
-                                        android:layout_height="26dp"
-                                        android:layout_gravity="center"
-                                        android:contentDescription="@null"
-                                        android:src="@drawable/ic_pin" />
-                                </FrameLayout>
-
-                                <FrameLayout
-                                    android:layout_width="56dp"
-                                    android:layout_height="56dp"
-                                    android:background="@drawable/bg_device">
-
-                                    <ImageView
-                                        android:layout_width="30dp"
-                                        android:layout_height="30dp"
-                                        android:layout_gravity="center"
-                                        android:contentDescription="@null"
-                                        android:src="@drawable/ic_tablet" />
-                                </FrameLayout>
-                            </LinearLayout>
-                        </FrameLayout>
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center_horizontal"
-                            android:text="@string/role_desc_title"
-                            android:textColor="@color/text_primary"
-                            android:textSize="17sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:gravity="center"
-                            android:lineSpacingExtra="3dp"
-                            android:text="@string/role_desc"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="13sp" />
-
-                        <!-- 房间码 -->
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_sid"
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:hint="@string/hint_sid"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusTopStart="14dp">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_sid"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="text"
-                                android:maxLength="16"
-                                android:maxLines="1" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <!-- 主按钮 -->
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_send"
-                            android:layout_width="match_parent"
-                            android:layout_height="54dp"
-                            android:layout_marginTop="14dp"
-                            android:text="@string/btn_send"
-                            android:textSize="16sp"
-                            app:cornerRadius="27dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_receive"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="54dp"
-                            android:layout_marginTop="10dp"
-                            android:text="@string/btn_receive"
-                            android:textSize="16sp"
-                            app:cornerRadius="27dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_stop"
-                            style="@style/Widget.Material3.Button.TextButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="46dp"
-                            android:enabled="false"
-                            android:text="@string/btn_stop"
-                            app:cornerRadius="23dp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 定位实况 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_detail"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:visibility="gone"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp"
-                    tools:visibility="visible">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/live_title"
-                                style="@style/TextSection" />
-
-                            <TextView
-                                android:id="@+id/tv_live_state"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/live_waiting"
-                                android:textColor="@color/text_tertiary"
-                                android:textSize="12sp" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/tv_d_latlon"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:textColor="@color/brand"
-                            android:textSize="22sp"
-                            android:textStyle="bold"
-                            tools:text="31.230416, 121.473701" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="@string/live_latlon_hint"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/d_accuracy"
-                                    style="@style/TextLabel" />
-
-                                <TextView
-                                    android:id="@+id/tv_d_accuracy"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    style="@style/TextValue"
-                                    tools:text="4.2 m" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/d_speed"
-                                    style="@style/TextLabel" />
-
-                                <TextView
-                                    android:id="@+id/tv_d_speed"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    style="@style/TextValue"
-                                    tools:text="0.0 km/h" />
-                            </LinearLayout>
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/d_altitude"
-                                    style="@style/TextLabel" />
-
-                                <TextView
-                                    android:id="@+id/tv_d_altitude"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    style="@style/TextValue"
-                                    tools:text="12.5 m" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/d_bearing"
-                                    style="@style/TextLabel" />
-
-                                <TextView
-                                    android:id="@+id/tv_d_bearing"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    style="@style/TextValue"
-                                    tools:text="42° 东北" />
-                            </LinearLayout>
-                        </LinearLayout>
-
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginTop="16dp"
-                            android:background="@color/divider" />
-
-                        <TextView
-                            android:id="@+id/tv_d_age"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:text="@string/live_wait_first"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 链路状态 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_link"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/link_title"
-                                style="@style/TextSection" />
-
-                            <TextView
-                                android:id="@+id/tv_link_mode"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/link_mode_default"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/tv_link_rate"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="—"
-                                    style="@style/TextValue" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="@string/link_rate_unit"
-                                    style="@style/TextLabel" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/tv_link_rtt"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="—"
-                                    style="@style/TextValue" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="@string/link_rtt_unit"
-                                    style="@style/TextLabel" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/tv_link_pkts"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="0"
-                                    style="@style/TextValue" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="@string/link_pkts_unit"
-                                    style="@style/TextLabel" />
-                            </LinearLayout>
-                        </LinearLayout>
-
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginTop="16dp"
-                            android:background="@color/divider" />
-
-                        <TextView
-                            android:id="@+id/tv_detail"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:lineSpacingExtra="3dp"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            tools:text="本机 IP：192.168.1.5" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 定位校验（运行时显示） -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_verify"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:visibility="gone"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp"
-                    tools:visibility="visible">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/verify_title"
-                            style="@style/TextSection" />
-
-                        <TextView
-                            android:id="@+id/tv_verify_injected"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:fontFamily="monospace"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            tools:text="注入值  33.592432, 114.078952" />
-
-                        <TextView
-                            android:id="@+id/tv_verify_readback"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:fontFamily="monospace"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/tv_verify_result"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:lineSpacingExtra="3dp"
-                            android:textSize="13sp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:lineSpacingExtra="3dp"
-                            android:text="@string/verify_hint"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 运行日志 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/log_title"
-                            style="@style/TextSection" />
-
-                        <TextView
-                            android:id="@+id/tv_log"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:background="@drawable/bg_log_rounded"
-                            android:fontFamily="monospace"
-                            android:hint="@string/log_empty"
-                            android:lineSpacingExtra="3dp"
-                            android:minHeight="90dp"
-                            android:padding="12dp"
-                            android:textColor="@color/log_text"
-                            android:textIsSelectable="true"
-                            android:textSize="11sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </LinearLayout>
-
-            <!-- ==================== 卫星页 ==================== -->
-            <LinearLayout
-                android:id="@+id/page_sat"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="26dp"
-                    android:text="@string/page_sat_title"
-                    style="@style/TextTitle" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/page_sat_subtitle"
-                    style="@style/TextLabel" />
-
-                <!-- 天空图 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/sat_title"
-                                style="@style/TextSection" />
-
-                            <TextView
-                                android:id="@+id/tv_sat_summary"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/sat_empty_count"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-                        </LinearLayout>
-
-                        <top.wxip.gpslink.ui.SatelliteSkyView
-                            android:id="@+id/sat_view"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:id="@+id/tv_sat_legend"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:gravity="center"
-                            android:lineSpacingExtra="2dp"
-                            android:text="@string/sat_hint"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 采样能力 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:padding="18dp">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/probe_title"
-                                style="@style/TextSection" />
-
-                            <TextView
-                                android:id="@+id/tv_probe_result"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="6dp"
-                                android:text="@string/probe_hint"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="13sp" />
-                        </LinearLayout>
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_probe"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:minHeight="40dp"
-                            android:text="@string/probe_action"
-                            app:cornerRadius="20dp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </LinearLayout>
-
-            <!-- ==================== 设置页 ==================== -->
-            <LinearLayout
-                android:id="@+id/page_settings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="26dp"
-                    android:text="@string/page_settings_title"
-                    style="@style/TextTitle" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/page_settings_subtitle"
-                    style="@style/TextLabel" />
-
-                <!-- 连接设置 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/connection_title"
-                            style="@style/TextSection" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:text="@string/mode_title"
-                            style="@style/TextLabel" />
-
-                        <com.google.android.material.button.MaterialButtonToggleGroup
-                            android:id="@+id/group_mode"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            app:selectionRequired="true"
-                            app:singleSelection="true">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_mode_lan"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="44dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="@string/mode_lan"
-                                android:textSize="13sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="22dp"
-                                android:textColor="@color/seg_text" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_mode_bt"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="44dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="@string/mode_bt"
-                                android:textSize="13sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="22dp"
-                                android:textColor="@color/seg_text" />
-                        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_port"
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:hint="@string/hint_port"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusTopStart="14dp">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_port"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:maxLength="5"
-                                android:maxLines="1" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_host"
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:hint="@string/hint_host"
-                            app:boxCornerRadiusBottomEnd="14dp"
-                            app:boxCornerRadiusBottomStart="14dp"
-                            app:boxCornerRadiusTopEnd="14dp"
-                            app:boxCornerRadiusTopStart="14dp">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_host"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="text"
-                                android:maxLines="1" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <LinearLayout
-                            android:id="@+id/row_bt"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal"
-                            android:visibility="gone"
-                            tools:visibility="visible">
-
-                            <TextView
-                                android:id="@+id/tv_bt_device"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/bt_none"
-                                android:textColor="@color/text_primary"
-                                android:textSize="13sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_pick_bt"
-                                style="@style/Widget.Material3.Button.TonalButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:minHeight="40dp"
-                                android:text="@string/bt_pick"
-                                app:cornerRadius="20dp" />
-                        </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 定位频率 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/rate_title"
-                            style="@style/TextSection" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:text="@string/rate_sender_label"
-                            style="@style/TextLabel" />
-
-                        <com.google.android.material.button.MaterialButtonToggleGroup
-                            android:id="@+id/group_rate"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            app:selectionRequired="true"
-                            app:singleSelection="true">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_rate_1"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="1 Hz"
-                                android:textSize="12sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="20dp"
-                                android:textColor="@color/seg_text" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_rate_2"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="2 Hz"
-                                android:textSize="12sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="20dp"
-                                android:textColor="@color/seg_text" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_rate_5"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="5 Hz"
-                                android:textSize="12sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="20dp"
-                                android:textColor="@color/seg_text" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_rate_10"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="10 Hz"
-                                android:textSize="12sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="20dp"
-                                android:textColor="@color/seg_text" />
-                        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:text="@string/rate_receiver_label"
-                            style="@style/TextLabel" />
-
-                        <com.google.android.material.button.MaterialButtonToggleGroup
-                            android:id="@+id/group_inject"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            app:selectionRequired="true"
-                            app:singleSelection="true">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_inject_1"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="1 Hz"
-                                android:textSize="12sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="20dp"
-                                android:textColor="@color/seg_text" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_inject_5"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="5 Hz"
-                                android:textSize="12sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="20dp"
-                                android:textColor="@color/seg_text" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_inject_10"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:text="10 Hz"
-                                android:textSize="12sp"
-                                app:backgroundTint="@color/seg_tint"
-                                app:cornerRadius="20dp"
-                                android:textColor="@color/seg_text" />
-                        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:lineSpacingExtra="3dp"
-                            android:text="@string/rate_hint"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 设备权限 -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_check"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    app:cardBackgroundColor="@color/card"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/stroke"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/check_title"
-                                style="@style/TextSection" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btn_recheck"
-                                style="@style/Widget.Material3.Button.TextButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:minHeight="32dp"
-                                android:text="@string/check_again"
-                                android:textSize="12sp" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/tv_check_perm"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:textSize="13sp"
-                            tools:text="● 定位权限：已授予" />
-
-                        <TextView
-                            android:id="@+id/tv_check_dev"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:textSize="13sp"
-                            tools:text="● 开发者选项：已开启" />
-
-                        <TextView
-                            android:id="@+id/tv_check_mock"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:textSize="13sp"
-                            tools:text="● 模拟位置应用：已选中" />
-
-                        <TextView
-                            android:id="@+id/tv_check_battery"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:background="?attr/selectableItemBackground"
-                            android:paddingVertical="2dp"
-                            android:textSize="13sp"
-                            tools:text="● 电池优化：已忽略" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_mock"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:minHeight="42dp"
-                            android:text="@string/mock_action"
-                            app:cornerRadius="21dp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:lineSpacingExtra="4dp"
-                    android:text="@string/tip"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-            </LinearLayout>
-        </LinearLayout>
-    </ScrollView>
-
-    <!-- 底部悬浮胶囊导航 -->
     <LinearLayout
-        android:id="@+id/nav_bar"
+        android:id="@+id/dock"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="20dp"
-        android:background="@drawable/bg_nav"
-        android:elevation="8dp"
-        android:gravity="center"
+        android:layout_gravity="bottom"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_dock"
         android:orientation="horizontal"
         android:padding="6dp">
 
         <LinearLayout
-            android:id="@+id/nav_link"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_nav_item"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:id="@+id/dock_link"
+            style="@style/GnssDockItem">
 
             <ImageView
-                android:id="@+id/nav_link_icon"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
+                android:duplicateParentState="true"
                 android:contentDescription="@string/nav_link"
-                android:src="@drawable/ic_nav_link_active" />
+                app:srcCompat="@drawable/ic_nav_link"
+                app:tint="@color/nav_text" />
 
             <TextView
-                android:id="@+id/nav_link_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                style="@style/GnssDockLabel"
+                android:duplicateParentState="true"
                 android:text="@string/nav_link"
-                android:textColor="@color/nav_text"
-                android:textSize="11sp" />
+                android:textColor="@color/nav_text" />
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/nav_sat"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_nav_item"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:id="@+id/dock_sat"
+            style="@style/GnssDockItem">
 
             <ImageView
-                android:id="@+id/nav_sat_icon"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
+                android:duplicateParentState="true"
                 android:contentDescription="@string/nav_sat"
-                android:src="@drawable/ic_nav_sat" />
+                app:srcCompat="@drawable/ic_nav_sat"
+                app:tint="@color/nav_text" />
 
             <TextView
-                android:id="@+id/nav_sat_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                style="@style/GnssDockLabel"
+                android:duplicateParentState="true"
                 android:text="@string/nav_sat"
-                android:textColor="@color/nav_text"
-                android:textSize="11sp" />
+                android:textColor="@color/nav_text" />
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/nav_settings"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_nav_item"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:id="@+id/dock_access"
+            style="@style/GnssDockItem">
 
             <ImageView
-                android:id="@+id/nav_settings_icon"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:contentDescription="@string/nav_settings"
-                android:src="@drawable/ic_nav_settings" />
+                android:duplicateParentState="true"
+                android:contentDescription="@string/nav_access"
+                app:srcCompat="@drawable/ic_nav_access"
+                app:tint="@color/nav_text" />
 
             <TextView
-                android:id="@+id/nav_settings_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                style="@style/GnssDockLabel"
+                android:duplicateParentState="true"
+                android:text="@string/nav_access"
+                android:textColor="@color/nav_text" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/dock_settings"
+            style="@style/GnssDockItem">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:duplicateParentState="true"
+                android:contentDescription="@string/nav_settings"
+                app:srcCompat="@drawable/ic_nav_settings"
+                app:tint="@color/nav_text" />
+
+            <TextView
+                style="@style/GnssDockLabel"
+                android:duplicateParentState="true"
                 android:text="@string/nav_settings"
-                android:textColor="@color/nav_text"
-                android:textSize="11sp" />
+                android:textColor="@color/nav_text" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/dock_about"
+            style="@style/GnssDockItem">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:duplicateParentState="true"
+                android:contentDescription="@string/nav_about"
+                app:srcCompat="@drawable/ic_nav_about"
+                app:tint="@color/nav_text" />
+
+            <TextView
+                style="@style/GnssDockLabel"
+                android:duplicateParentState="true"
+                android:text="@string/nav_about"
+                android:textColor="@color/nav_text" />
         </LinearLayout>
     </LinearLayout>
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</FrameLayout>

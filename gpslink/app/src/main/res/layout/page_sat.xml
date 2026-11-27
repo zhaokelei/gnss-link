@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:paddingBottom="@dimen/dock_bottom"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/page_pad"
+        android:paddingTop="28dp"
+        android:paddingRight="@dimen/page_pad">
+
+        <TextView
+            style="@style/GnssPageTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/page_sat_title" />
+
+        <TextView
+            style="@style/GnssPageSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/page_sat_subtitle" />
+
+        <LinearLayout style="@style/GnssCard">
+            <top.wxip.gpslink.ui.SatelliteSkyView
+                android:id="@+id/sky"
+                android:layout_width="match_parent"
+                android:layout_height="260dp" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <TextView
+                style="@style/GnssCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="信号" />
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="可见卫星" />
+                <TextView android:id="@+id/sat_visible" style="@style/GnssKvValue" android:text="0" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="参与定位" />
+                <TextView android:id="@+id/sat_used" style="@style/GnssKvValue" android:text="0" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/GnssKvRow">
+                <TextView style="@style/GnssKvKey" android:text="平均信噪比" />
+                <TextView android:id="@+id/sat_snr" style="@style/GnssKvValue" android:text="—" />
+            </LinearLayout>
+
+            <top.wxip.gpslink.ui.SatelliteBarsView
+                android:id="@+id/bars"
+                android:layout_width="match_parent"
+                android:layout_height="150dp"
+                android:layout_marginTop="14dp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

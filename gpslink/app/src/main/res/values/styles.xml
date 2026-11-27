@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 卡片：与 Web 版一致的厚度与圆角，靠 @color 自动适配深色 -->
+    <style name="GnssCard">
+        <item name="android:background">@drawable/bg_card</item>
+        <item name="android:padding">@dimen/card_pad</item>
+        <item name="android:layout_marginBottom">@dimen/card_gap</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="GnssPageTitle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="GnssPageSub">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:layout_marginBottom">18dp</item>
+    </style>
+
+    <style name="GnssCardTitle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="GnssLabel">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:layout_marginTop">14dp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+    </style>
+
+    <style name="GnssHint">
+        <item name="android:textColor">@color/text_tertiary</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <style name="GnssValue">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="GnssBtn">
+        <item name="android:background">@drawable/bg_btn</item>
+        <item name="android:minHeight">@dimen/touch_min</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <style name="GnssBtnPrimary" parent="GnssBtn">
+        <item name="android:background">@drawable/bg_btn_primary</item>
+        <item name="android:textColor">@color/text_on_brand</item>
+    </style>
+
+    <style name="GnssBtnDanger" parent="GnssBtn">
+        <item name="android:background">@drawable/bg_btn_danger</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+
+    <style name="GnssField">
+        <item name="android:background">@drawable/bg_field</item>
+        <item name="android:minHeight">@dimen/touch_min</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColorHint">@color/text_tertiary</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <style name="GnssDockItem">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">@dimen/dock_item_h</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:background">@android:color/transparent</item>
+    </style>
+
+    <style name="GnssDockLabel">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:layout_marginTop">3dp</item>
+    </style>
+
+    <style name="GnssSectionRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+    </style>
+
+    <!-- 分段控件：去掉系统 radio 圆圈，选中态自绘 -->
+    <style name="GnssSeg">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:button">@null</item>
+        <item name="android:background">@drawable/bg_seg_item</item>
+        <item name="android:textColor">@color/seg_text</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="GnssKvRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:layout_marginTop">10dp</item>
+    </style>
+
+    <style name="GnssKvKey">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="GnssKvValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:gravity">end</item>
+    </style>
+</resources>

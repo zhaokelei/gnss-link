@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:paddingBottom="@dimen/dock_bottom"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/page_pad"
+        android:paddingTop="28dp"
+        android:paddingRight="@dimen/page_pad">
+
+        <TextView
+            style="@style/GnssPageTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/page_settings_title" />
+
+        <TextView
+            style="@style/GnssPageSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="连接参数、界面与轨迹" />
+
+        <LinearLayout style="@style/GnssCard">
+
+            <TextView
+                style="@style/GnssCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="连接设置" />
+
+            <TextView style="@style/GnssLabel" android:text="传输方式" />
+
+            <RadioGroup
+                android:id="@+id/mode"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_segment"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <RadioButton
+                    android:id="@+id/mode_lan"
+                    style="@style/GnssSeg"
+                    android:checked="true"
+                    android:text="局域网" />
+
+                <RadioButton
+                    android:id="@+id/mode_bt"
+                    style="@style/GnssSeg"
+                    android:text="蓝牙" />
+            </RadioGroup>
+
+            <LinearLayout
+                android:id="@+id/bt_row"
+                style="@style/GnssKvRow"
+                android:visibility="gone">
+
+                <TextView style="@style/GnssKvKey" android:text="蓝牙设备" />
+
+                <TextView
+                    android:id="@+id/bt_label"
+                    style="@style/GnssKvValue"
+                    android:text="未选择" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_pick_bt"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginTop="10dp"
+                android:text="选择蓝牙设备"
+                android:visibility="gone" />
+
+            <TextView style="@style/GnssLabel" android:text="房间码" />
+
+            <EditText
+                android:id="@+id/sid"
+                style="@style/GnssField"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:inputType="text"
+                android:maxLength="64"
+                android:text="8888" />
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="两台设备填写相同的房间码。" />
+
+            <TextView style="@style/GnssLabel" android:text="连接端口" />
+
+            <EditText
+                android:id="@+id/port"
+                style="@style/GnssField"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:inputType="number"
+                android:text="7007" />
+
+            <TextView style="@style/GnssLabel" android:text="接收端 IP（可选）" />
+
+            <EditText
+                android:id="@+id/host"
+                style="@style/GnssField"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:hint="留空自动发现"
+                android:inputType="text" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <TextView
+                style="@style/GnssCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="定位频率" />
+
+            <TextView style="@style/GnssLabel" android:text="发送采样" />
+
+            <RadioGroup
+                android:id="@+id/sample"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_segment"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <RadioButton
+                    android:id="@+id/sample_1000"
+                    style="@style/GnssSeg"
+                    android:checked="true"
+                    android:text="1 Hz" />
+
+                <RadioButton
+                    android:id="@+id/sample_500"
+                    style="@style/GnssSeg"
+                    android:text="2 Hz" />
+
+                <RadioButton
+                    android:id="@+id/sample_200"
+                    style="@style/GnssSeg"
+                    android:text="5 Hz" />
+
+                <RadioButton
+                    android:id="@+id/sample_100"
+                    style="@style/GnssSeg"
+                    android:text="10 Hz" />
+            </RadioGroup>
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="实际采样频率取决于发送设备的定位能力。" />
+
+            <TextView style="@style/GnssLabel" android:text="接收注入" />
+
+            <RadioGroup
+                android:id="@+id/inject"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_segment"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <RadioButton
+                    android:id="@+id/inject_1000"
+                    style="@style/GnssSeg"
+                    android:text="1 Hz" />
+
+                <RadioButton
+                    android:id="@+id/inject_200"
+                    style="@style/GnssSeg"
+                    android:text="5 Hz" />
+
+                <RadioButton
+                    android:id="@+id/inject_100"
+                    style="@style/GnssSeg"
+                    android:checked="true"
+                    android:text="10 Hz" />
+            </RadioGroup>
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <LinearLayout style="@style/GnssSectionRow">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="后台保活" />
+
+                <TextView
+                    android:id="@+id/keepalive_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_tag"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="4dp"
+                    android:text="未开启"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="悬浮窗 + 常驻通知"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/keepalive_hint"
+                        style="@style/GnssHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="开启后退到后台，角落出现一枚可拖动的小标签，并保持通知不被清理。" />
+                </LinearLayout>
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/keepalive"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
+                android:minWidth="@dimen/touch_min"
+                android:thumb="@drawable/switch_thumb"
+                android:track="@drawable/switch_track" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_overlay"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginTop="12dp"
+                android:text="授予悬浮窗权限"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <LinearLayout style="@style/GnssSectionRow">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="自动运行" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/autostart"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
+                android:minWidth="@dimen/touch_min"
+                android:thumb="@drawable/switch_thumb"
+                android:track="@drawable/switch_track" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="按上次使用的角色与参数自动运行，适合车机等每次都会断电的设备。" />
+
+            <TextView
+                android:id="@+id/autostart_hint"
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/brand" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <LinearLayout style="@style/GnssSectionRow">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="轨迹记录" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/track_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
+                android:minWidth="@dimen/touch_min"
+                android:thumb="@drawable/switch_thumb"
+                android:track="@drawable/switch_track" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="按帧落盘到本地，回放时不需要发送端，可离线复现链路问题。" />
+
+            <Button
+                android:id="@+id/btn_track_play"
+                style="@style/GnssBtn"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:layout_marginTop="12dp"
+                android:text="回放最新轨迹" />
+
+            <TextView
+                android:id="@+id/track_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_field"
+                android:padding="12dp"
+                android:text="暂无轨迹"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <LinearLayout style="@style/GnssSectionRow">
+
+                <TextView
+                    style="@style/GnssCardTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="NMEA 输出" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/nmea"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_min"
+                android:minWidth="@dimen/touch_min"
+                android:thumb="@drawable/switch_thumb"
+                android:track="@drawable/switch_track" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="车机导航支持「外部 GPS / NMEA 输入」时，填本机地址与端口即可读取。" />
+
+            <TextView style="@style/GnssLabel" android:text="监听端口" />
+
+            <EditText
+                android:id="@+id/nmea_port"
+                style="@style/GnssField"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/touch_min"
+                android:inputType="number"
+                android:text="10110" />
+
+            <TextView
+                android:id="@+id/nmea_address"
+                style="@style/GnssHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="开始共享后显示连接地址" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/GnssCard">
+
+            <TextView
+                style="@style/GnssCardTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="运行日志" />
+
+            <TextView
+                android:id="@+id/logs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="monospace"
+                android:minLines="6"
+                android:text="暂无日志"
+                android:textColor="@color/log_text"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="page_pad">20dp</dimen>
+    <dimen name="card_pad">20dp</dimen>
+    <dimen name="card_gap">14dp</dimen>
+    <dimen name="radius_card">24dp</dimen>
+    <dimen name="radius_field">14dp</dimen>
+    <dimen name="radius_btn">16dp</dimen>
+    <dimen name="touch_min">48dp</dimen>
+    <dimen name="dock_bottom">92dp</dimen>
+    <dimen name="dock_item_h">64dp</dimen>
+</resources>
