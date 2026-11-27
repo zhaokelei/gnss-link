@@ -11,8 +11,8 @@ android {
         applicationId = "top.wxip.gpslink"
         minSdk = 19
         targetSdk = 34
-        versionCode = 21
-        versionName = "1.3.3"
+        versionCode = 22
+        versionName = "1.3.4"
         // API 19/20 不会自动分包，appcompat+material 方法数可能超 64K，必须开启并走 legacy multidex
         multiDexEnabled = true
         // minSdk<21 时 AGP 会尝试把矢量图转 PNG，遇到 @color 引用会失败；

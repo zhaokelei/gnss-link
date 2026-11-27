@@ -17,6 +17,11 @@ function spring(value, target, dt, frequency, damping) {
 
 export function attachLiquidDock(dock, switchTab) {
   const tabs = Array.from(dock.querySelectorAll(".dock-tab"));
+  // 页签切换原本只挂在 Pointer Events 上，而 Android 4.4-7 的原生 WebView
+  // （Chromium 30-51）根本不支持 Pointer Events —— 这类车机上点页签只会留下
+  // 一圈焦点框，页面不切换。这里做能力检测，老内核退回 click。
+  const hasPointerEvents = typeof window.PointerEvent === "function";
+  if (!hasPointerEvents) document.documentElement.setAttribute("data-legacy-input", "");
   const lens = dock.querySelector(".dock-lens");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   const position = { current: 0, velocity: 0 };
@@ -187,7 +192,9 @@ export function attachLiquidDock(dock, switchTab) {
   // A captured pointer ends on the dock. Keyboard and accessibility clicks
   // still reach the real buttons and use the same selection handler.
   tabs.forEach((tab, index) => tab.addEventListener("click", (event) => {
-    if (event.detail === 0) select(index);
+    // 老内核：click 是唯一入口。新内核：只处理键盘/无障碍触发的 click，
+    // 触摸路径已由 pointerup 处理，避免重复切换。
+    if (!hasPointerEvents || event.detail === 0) select(index);
   }));
   dock.addEventListener("keydown", (event) => {
     const target = {

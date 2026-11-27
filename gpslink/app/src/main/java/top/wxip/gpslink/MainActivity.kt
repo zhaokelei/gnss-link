@@ -35,6 +35,7 @@ import top.wxip.gpslink.core.*
 import top.wxip.gpslink.mock.MockLocationEngine
 import top.wxip.gpslink.service.ReceiveService
 import top.wxip.gpslink.service.SendService
+import top.wxip.gpslink.ui.OverlayHud
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -55,6 +56,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     private var resumed = false
     private var useBt = false
     private var btMac = ""
+    /** 后台保活开关，进后台时据此决定是否挂悬浮窗 */
+    private var keepAlive = false
     private var pendingAction: (() -> Unit)? = null
     private val logLines = ArrayDeque<String>()
     private val remoteExpiry = Runnable { publishSatellites() }
@@ -83,6 +86,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         useBt = Prefs.loadUseBt(this)
+        keepAlive = Prefs.loadKeepAlive(this)
         btMac = Prefs.loadBtMac(this)
         web = WebView(this)
         setContentView(web)
@@ -221,6 +225,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
                             withPermission { start(data.optString("role")) }
                         }
                         "stop" -> { SendService.stop(this@MainActivity); ReceiveService.stop(this@MainActivity); LinkBus.reset() }
+                        "keepalive" -> setKeepAlive(data.optBoolean("enabled"))
+                        "overlay-permission" -> requestOverlayPermission()
                         "mock" -> if (!engine.openMockSettings())
                             toast("本机没有可用的设置页，请用「命令行授权」里的 adb 命令授权")
                         "battery" -> requestIgnoreBattery()
@@ -283,6 +289,9 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
             .put("nmeaPort", Prefs.loadNmeaPort(this))
             .put("orientation", Prefs.loadOrientation(this))
             .put("package", packageName)
+            .put("keepAlive", keepAlive)
+            // 排查车机问题时最需要的一行：App 实际用的是系统 WebView，不是车机浏览器
+            .put("engine", webEngineLabel())
             .put("version", currentVersion)
             .put("dark", resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
             .put("reduceMotion", reducedMotion()))
@@ -681,6 +690,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         super.onResume()
         resumed = true
         publishChecks()
+        syncOverlay()
         publishBtLabel()
         emit("motion", reducedMotion())
         if (!LinkBus.status.running) {
@@ -693,6 +703,7 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     override fun onPause() {
         resumed = false
         satMonitor.stop()
+        syncOverlay()
         web.onPause()
         super.onPause()
     }
@@ -709,6 +720,8 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
     }
 
     override fun onStatus(status: LinkStatus) {
+        // 悬浮窗只在后台显示，这里顺手刷新内容，前台时 update 内部会直接返回
+        if (OverlayHud.isShowing()) OverlayHud.update(status)
         val json = JSONObject()
             .put("running", status.running)
             .put("role", status.role.name)
@@ -776,7 +789,9 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         val access = engine.describe()
         emit("checks", JSONObject().put("location", hasLocationPermission()).put("dev", access.devOptions)
             .put("mock", access.granted).put("battery", isIgnoringBattery())
-            .put("background", hasBackgroundLocation()))
+            .put("background", hasBackgroundLocation())
+            .put("keepAlive", keepAlive)
+            .put("overlay", OverlayHud.canDraw(this)))
         // 授权机制按系统版本分档，界面据此显示不同步骤与命令
         emit("access", JSONObject()
             .put("sdk", access.sdk)
@@ -833,6 +848,76 @@ class MainActivity : AppCompatActivity(), LinkBus.Observer {
         if (ready) emit("notice", message)
         else Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
+    /** 形如 "Chrome 116 · WebView 116.0.5845.163"，取不到就如实说不知道 */
+    private fun webEngineLabel(): String {
+        val chrome = try {
+            Regex("Chrome/(\\d+)").find(web.settings.userAgentString)
+                ?.groupValues?.get(1)
+        } catch (_: Throwable) {
+            null
+        }
+        val pkg = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                android.webkit.WebView.getCurrentWebViewPackage()?.versionName
+            } catch (_: Throwable) {
+                null
+            }
+        } else {
+            null
+        }
+        return listOfNotNull(
+            chrome?.let { "Chrome $it" },
+            pkg?.let { it }
+        ).joinToString(" · ").ifBlank { "未知" }
+    }
+
+    /**
+     * 切换后台保活。
+     *
+     * 没有悬浮窗权限时不阻断开关 —— 保活仍有常驻通知这一层，只是效果弱一点，
+     * 所以这里只提示并引导去授权，用户拒绝也照常保存开关状态。
+     */
+    private fun setKeepAlive(enabled: Boolean) {
+        keepAlive = enabled
+        Prefs.saveKeepAlive(this, enabled)
+        if (enabled && !OverlayHud.canDraw(this)) {
+            toast("未授予悬浮窗权限，保活只依赖常驻通知")
+            requestOverlayPermission()
+        }
+        if (!enabled) OverlayHud.hide()
+        syncOverlay()
+        publishChecks()
+    }
+
+    /** 按「开关 + 是否前台 + 服务是否在跑 + 有没有权限」四个条件决定悬浮窗去留 */
+    private fun syncOverlay() {
+        val shouldShow = keepAlive && !resumed && LinkBus.status.running && OverlayHud.canDraw(this)
+        if (shouldShow) {
+            OverlayHud.show(this)
+            OverlayHud.update(LinkBus.status)
+        } else {
+            OverlayHud.hide()
+        }
+    }
+
+    /** 跳悬浮窗授权页；部分车机把这个页面裁了，退到应用详情页让用户自己找 */
+    private fun requestOverlayPermission() {
+        val deep = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:$packageName")
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (tryStart(deep)) return
+        if (tryStart(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))) return
+        openAppSettings()
+    }
+
+    private fun tryStart(intent: Intent): Boolean = try {
+        startActivity(intent)
+        true
+    } catch (t: Throwable) {
+        false
+    }
+
     private fun isIgnoringBattery(): Boolean = try {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         pm.isIgnoringBatteryOptimizations(packageName)

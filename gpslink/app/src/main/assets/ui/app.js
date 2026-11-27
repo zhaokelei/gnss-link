@@ -1,4 +1,8 @@
 import { attachLiquidDock, attachButtonHighlights } from "./liquid-dock.mjs";
+
+// 给 index.html 里的启动自检用：能执行到这一行，说明内核支持 ES module，
+// 不需要降级到精简界面。
+window.__gnssBooted = true;
 const $ = (id) => document.getElementById(id);
 let role = "sender",
   mode = "lan",
@@ -92,6 +96,39 @@ for (const action of [
   "background",
 ])
   $(action).onclick = () => native(action);
+
+// 后台保活：开关立即写入原生，悬浮窗权限单独一步
+$("keepalive").onclick = () => {
+  const next = !isOn("keepalive");
+  setSwitch("keepalive", next);
+  native("keepalive", { enabled: next });
+};
+$("overlay").onclick = () => native("overlay-permission");
+
+// 开关本体只有 48×28，车机上很难点中；整行都能切换，命中区直接翻倍。
+// 点在开关自身上时不重复触发（浏览器已经处理过）。
+document.querySelectorAll(".switch-row").forEach((row) => {
+  row.addEventListener("click", (event) => {
+    const sw = row.querySelector(".switch");
+    if (!sw || sw === event.target || sw.contains(event.target)) return;
+    sw.click();
+  });
+});
+
+// 车机常用方向盘/遥控器操作：焦点落到按钮上后，确认键必须能触发点击。
+// 少数车机的确认键不会合成 click，这里显式补一次（先阻止默认，避免双触发）。
+document.addEventListener("keydown", (event) => {
+  const confirm =
+    event.key === "Enter" ||
+    event.key === " " ||
+    event.keyCode === 23 ||
+    event.keyCode === 66;
+  if (!confirm) return;
+  const el = document.activeElement;
+  if (!el || el.tagName !== "BUTTON" || el.disabled) return;
+  event.preventDefault();
+  el.click();
+});
 
 // 设置页被 ROM 裁掉时，这个按钮改为把用户带到下方 adb 命令
 $("mock").onclick = () => {
@@ -198,6 +235,26 @@ function renderAccess(data) {
     ? "4.4–5.1 只要打开系统开关即可。开发者选项被裁掉时，用下面这条命令直接打开开关，立刻生效。"
     : "6.0 起声明权限不再管用，必须在 AppOps 里放行。开发者选项被裁掉时，用下面这条命令等效于手动选中本应用，重启不丢。";
   $("adb-card").classList.toggle("emphasis", !data.settingsPage && !data.granted);
+}
+
+/* 保活卡：开关状态由原生持久化，权限缺失时把授权按钮露出来 */
+function renderKeepAlive(data) {
+  const on = Boolean(data.keepAlive);
+  const allowed = Boolean(data.overlay);
+  setSwitch("keepalive", on);
+
+  const badge = $("keepalive-state");
+  badge.textContent = on ? "已开启" : "未开启";
+  badge.classList.toggle("ok", on);
+
+  const btn = $("overlay");
+  btn.hidden = allowed;
+
+  $("keepalive-hint").textContent = allowed
+    ? on
+      ? "退到后台时角落会出现可拖动的小标签，点一下回到应用。"
+      : "开启后可在后台保持运行，前台使用时不会出现悬浮窗。"
+    : "尚未授予悬浮窗权限，当前保活只依赖常驻通知。授权后无需重启，回到本页即可生效。";
 }
 
 function renderTracks(list) {
@@ -640,6 +697,7 @@ window.GnssUI = {
       select("sample", data.intervalMs);
       select("inject", data.injectMs);
       setSwitch("autostart", data.autoStart);
+      setSwitch("keepalive", data.keepAlive);
       setSwitch("track-toggle", data.trackEnabled);
       setSwitch("nmea", data.nmeaEnabled);
       if (data.nmeaPort) $("nmea-port").value = data.nmeaPort;
@@ -662,6 +720,7 @@ window.GnssUI = {
         applyTheme(
           localStorage.getItem("theme") || (data.dark ? "dark" : "light"),
         );
+      if (data.engine) $("about-engine").textContent = data.engine;
       if (data.version) {
         $("about-version").textContent = data.version;
         $("update-state").textContent = `当前版本 ${data.version}，点右侧按钮可立即检查。`;
@@ -670,11 +729,13 @@ window.GnssUI = {
       native("tracks");
       native("check-update");
     } else if (type === "status") renderStatus(data);
-    else if (type === "checks")
+    else if (type === "checks") {
       for (const name of ["location", "dev", "mock", "battery", "background"]) {
         $(`check-${name}`).textContent = data[name] ? "已就绪" : "待设置";
         $(`check-${name}`).classList.toggle("ok", data[name]);
       }
+      renderKeepAlive(data);
+    }
     else if (type === "access") renderAccess(data);
     else if (type === "satellites") renderSatellites(data);
     else if (type === "tracks") renderTracks(data);

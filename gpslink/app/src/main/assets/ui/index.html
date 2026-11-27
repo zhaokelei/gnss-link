@@ -472,6 +472,33 @@
             </article>
             <article class="surface">
               <div class="section-head">
+                <h2>后台保活</h2>
+                <span id="keepalive-state">未开启</span>
+              </div>
+              <div class="switch-row">
+                <div class="switch-text">
+                  <span class="switch-label">悬浮窗 + 常驻通知</span>
+                  <p class="field-note">
+                    开启后退到后台，角落会出现一枚可拖动的小标签，显示当前速率并保持通知不被清理，降低被系统回收的概率。前台使用时不会出现。
+                  </p>
+                </div>
+                <button
+                  class="switch"
+                  id="keepalive"
+                  role="switch"
+                  aria-checked="false"
+                  aria-label="后台保活"
+                >
+                  <span></span>
+                </button>
+              </div>
+              <p class="field-note" id="keepalive-hint">
+                未授予悬浮窗权限时，保活只依赖常驻通知。
+              </p>
+              <button class="lg-btn" id="overlay" hidden>授予悬浮窗权限</button>
+            </article>
+            <article class="surface">
+              <div class="section-head">
                 <h2>自动运行</h2>
               </div>
               <div class="switch-row">
@@ -574,6 +601,9 @@
                 <p class="field-note">把本机定位共享到平板或车机</p>
                 <span class="about-version"
                   >版本 <b id="about-version">1.2.6</b></span
+                >
+                <span class="about-version"
+                  >内核 <b id="about-engine">检测中</b></span
                 >
               </div>
             </div>
@@ -728,6 +758,7 @@
     </div>
     <div id="notice" role="status" hidden></div>
     <script src="refraction.js"></script>
+    <script src="boot-guard.js"></script>
     <script type="module" src="app.js"></script>
   </body>
 </html>

@@ -20,6 +20,7 @@ object Prefs {
     private const val K_NMEA_ENABLED = "nmea_enabled"
     private const val K_NMEA_PORT = "nmea_port"
     private const val K_ORIENTATION = "orientation"
+    private const val K_KEEP_ALIVE = "keep_alive"
 
     /** NMEA over TCP 输出 */
     fun saveNmea(ctx: Context, enabled: Boolean, port: Int) {
@@ -79,6 +80,20 @@ object Prefs {
 
     fun loadUseBt(ctx: Context): Boolean =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(K_USE_BT, false)
+
+    /**
+     * 后台保活：开启后应用退到后台时用悬浮窗 + 常驻通知维持进程优先级。
+     * 默认关闭，保持原有行为。
+     */
+    fun saveKeepAlive(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putBoolean(K_KEEP_ALIVE, enabled)
+            .apply()
+    }
+
+    fun loadKeepAlive(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getBoolean(K_KEEP_ALIVE, false)
 
     /** 屏幕方向：auto 跟随系统，landscape / portrait 强制指定，车机常需要手动锁横屏 */
     fun saveOrientation(ctx: Context, value: String) {

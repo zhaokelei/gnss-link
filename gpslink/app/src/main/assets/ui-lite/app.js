@@ -192,6 +192,13 @@
     });
   }
 
+  $("keepalive").onchange = function () {
+    send("keepalive", { enabled: this.checked });
+    $("keepalive-hint").textContent = this.checked
+      ? "已开启，退到后台会在角落显示一枚小标签。"
+      : "退到后台时显示一枚可拖动的小标签，并保持通知不被清理。";
+  };
+
   $("autostart").onchange = function () {
     send("autostart", { enabled: this.checked });
     $("autostart-hint").textContent = this.checked
@@ -415,6 +422,9 @@
   /* ==================== 渲染：授权 / 日志 ==================== */
 
   function renderChecks(data) {
+    if (data.overlay === false && $("keepalive").checked) {
+      $("keepalive-hint").textContent = "未授予悬浮窗权限，当前只靠常驻通知保活。";
+    }
     var pairs = [
       ["check-location", data.location],
       ["check-mock", data.mock]
@@ -578,6 +588,7 @@
     }
 
     $("autostart").checked = !!data.autoStart;
+    $("keepalive").checked = !!data.keepAlive;
     $("track-toggle").checked = !!data.trackEnabled;
     $("nmea").checked = !!data.nmeaEnabled;
     if (data.nmeaPort) $("nmea-port").value = data.nmeaPort;
