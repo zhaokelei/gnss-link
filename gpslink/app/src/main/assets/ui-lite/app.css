@@ -924,3 +924,49 @@ input.switch {
     max-width: 1160px;
   }
 }
+
+/* ---------------------------------------------------------------
+   原生控件归一化（Chromium 30 可用写法，不依赖任何新特性）
+   去掉 number 输入框箭头、系统滚动条、长按菜单与点击高亮。
+   --------------------------------------------------------------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  -webkit-touch-callout: none;
+}
+button,
+.dock,
+.tab,
+.switch-row,
+h2 {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input {
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-user-select: text;
+  border-radius: 4px;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(20, 30, 50, 0.2);
+  border-radius: 3px;
+}

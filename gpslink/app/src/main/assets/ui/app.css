@@ -1638,3 +1638,77 @@ body::after {
   width: clamp(20px, 2.4vh, 28px);
   height: clamp(20px, 2.4vh, 28px);
 }
+
+/* ---------------------------------------------------------------
+   原生控件归一化
+   目标是让 WebView 里的控件看起来由应用自己绘制，而不是浏览器默认控件：
+   隐藏 number 输入框的加减箭头、日期选择器图标、系统滚动条、
+   长按弹出菜单与文本选中高亮，并把焦点/选中的颜色收进主题色。
+   --------------------------------------------------------------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+body {
+  /* 长按不弹"复制/分享"，车机上误触很频繁 */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 界面文案不可选中，输入框照常可选 */
+button,
+.dock-tab,
+.switch-row,
+.section-head,
+h1,
+h2,
+h3,
+.about-name,
+.value,
+.chip,
+.metric {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+/* number 输入框的上下箭头是浏览器默认控件，尺寸小、车机上很难点中 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+/* 滚动条统一成细条，避免车机上那条又宽又亮的系统滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgba(20, 30, 50, 0.18);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+::selection {
+  background: rgba(47, 111, 237, 0.24);
+}
