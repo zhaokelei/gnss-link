@@ -222,8 +222,13 @@ sdk.dir=C\:/Users/Administrator/android-tools/sdk
 | --- | --- |
 | 地址 | `ftp://140.143.141.192:21` |
 | 用户 | `gpslink` |
-| 密码 | 见 `ftp.MD` |
+| 密码 | 见 `CREDENTIALS.md`（本地文件，已 gitignore） |
 | 目录 | `/download/` |
+
+> 完整凭据（FTP 密码、两个 GitHub PAT、keystore 口令、Secrets 取值、代理地址）都在
+> 仓库根目录的 `CREDENTIALS.md` 里。**该文件已被 `.gitignore` 排除，不会进仓库**——
+> 这是刻意的：本仓库公开，明文令牌提交上去会被 GitHub 自动吊销。
+> 交接时它随压缩包一起给，但不要提交、不要贴到公开渠道。
 
 > ⚠️ 这组凭据**曾经硬编码在旧提交里**（`35648bf`、`31971e7` 的 `MainActivity.kt`），仓库公开，视为已泄露。正式接手第一件事应该是去服务器改密码，然后同步更新：FTP 服务器、GitHub Secrets 的 `FTP_PASS`、本地 `ftp.MD`。
 
@@ -342,6 +347,36 @@ curl -X POST -H "Authorization: token <PAT>" \
 | 1.3.5 | 控件外观全部自绘，去掉浏览器默认控件 |
 | 1.3.6 | 界面彻底原生化，移除 WebView |
 | 1.3.7 | 修复 1.3.6 启动闪退（样式缺布局尺寸）；删除网页资源；加冒烟测试 |
+
+
+## 15. 凭据与环境速查
+
+完整明文在 `CREDENTIALS.md`。这里只列「有哪些、在哪、怎么改」，方便快速定位。
+
+| 凭据 | 位置 | 说明 |
+| --- | --- | --- |
+| GitHub 账号 | `zhaokelei` | SSH 已配好，直接 `git push` 即可，无需令牌 |
+| GitHub classic PAT | `CREDENTIALS.md` §1.1 | 调 API 用；国内必须走代理 `127.0.0.1:10999` |
+| GitHub fine-grained PAT | `CREDENTIALS.md` §1.1 | 备用，classic 失效时用 |
+| FTP 密码 | `CREDENTIALS.md` §2 | 同时存在 `ftp.MD`；改密码要同步服务器 / Secrets / 本地三处 |
+| 签名 keystore | `keystore/gpslink.jks`（本地缺失） | 只能从 Secrets 的 `SIGNING_KEY_BASE64` 解码还原 |
+| keystore 口令 | `gpslink2026`（别名 `gpslink`） | 写在 `build.gradle.kts` 的 fallback 里，本身就是公开信息 |
+| GitHub Secrets | 仓库 Settings → Secrets | 8 项，清单与取值见 `CREDENTIALS.md` §4 |
+| 代理 | `127.0.0.1:10999` | 仅本机需要，访问 `api.github.com` 时加 `-x` |
+
+调用 API 的正确姿势（令牌从文件里读，不要写死在命令历史里）：
+
+```bash
+PAT=$(grep -A1 'classic PAT' CREDENTIALS.md | tail -1 | tr -d ' `')
+curl -s -x http://127.0.0.1:10999 -H "Authorization: token $PAT" \
+  https://api.github.com/repos/zhaokelei/gnss-link/releases/latest | grep tag_name
+```
+
+三条安全底线：
+
+1. `CREDENTIALS.md`、`ftp.MD`、`*.jks` 一律不进仓库（已在 `.gitignore`）。
+2. 令牌只用于 API 调用，不进 APK、不进日志、不进截图。
+3. 一旦发现泄露：GitHub 侧吊销令牌；FTP 侧改密码；keystore 无法更换（换了老用户就没法覆盖升级），只能靠 SECRETS 保密。
 
 ---
 
